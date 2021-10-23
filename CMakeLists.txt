@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.22)
 project(rPiTempStation)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -32,4 +32,11 @@ add_executable(rPiTempStation main.cpp)
 
 add_subdirectory(modules/cpu_temp)
 
+add_subdirectory(libraries/ipc)
+add_subdirectory(libraries/common)
+
+add_subdirectory(tools/monitor)
+
 target_link_libraries(rPiTempStation cpu_temp)
+target_link_libraries(rPiTempStation gr_ipc)
+target_link_libraries(rPiTempStation common)

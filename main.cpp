@@ -1,57 +1,53 @@
 #include <iostream>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 #include <chrono>
 #include <signal.h>
-#include <atomic>
 #include <utility>
 #include <vector>
 
 #include <cpu_temp.h>
+#include <gr_ipc.h>
+#include <common.h>
 
 static void signal_handler(int v);
-static void monitor_thread();
 
-static bool kill_signal;
-static std::condition_variable cv;
-static std::mutex m;
-
-static std::vector<std::pair<unsigned int, float>> cpu_temp_log;
+static common::abortable_delay* loop_delay;
 
 int main()
 {
+    loop_delay = new common::abortable_delay (5000);
+
     signal(SIGINT, signal_handler);
 
     /* Creating sub-modules. */
     cpu_temp::reader module_cpu_temp {};
 
+    /* Creating publisher. */
+    ipc::context_t ctx {};
+    ipc::publisher publisher (ctx, "temp");
+
     /* Wait for kill signal. */
-    while (!kill_signal)
+    do
     {
-        auto unix_time = (unsigned int) std::time(nullptr);
         auto temp_cpu = module_cpu_temp.read();
-        std::pair<unsigned int, float> log_entry (unix_time, temp_cpu);
-        cpu_temp_log.push_back(log_entry);
 
-        std::cout << "cpu temp: " << temp_cpu << " deg. Number of log entries: " << cpu_temp_log.size() << std::endl;
+        std::stringstream ss {};
+        ss << "cpu temp: " << temp_cpu << " deg.";
 
-        std::unique_lock<std::mutex> uniqueLock(m);
-        (void) cv.wait_for(uniqueLock, std::chrono::seconds(5), [] {return kill_signal;});
+        publisher.publish(ss.str());
     }
+    while (loop_delay->wait());
+
+    delete loop_delay;
+
     return 0;
 }
 
 static void signal_handler(int v)
 {
+    (void) v;
+    if (nullptr != loop_delay)
     {
-        std::unique_lock<std::mutex> uniqueLock(m);
-        kill_signal = true;
+        loop_delay->abort();
     }
-    cv.notify_one();
-}
-
-static void monitor_thread()
-{
 }
 
