@@ -16,7 +16,7 @@ int main ()
     loop_delay = new common::abortable_delay (100);
 
     ipc::context_t ctx {};
-    ipc::subscriber subscriber (ctx, "");
+    ipc::subscriber subscriber (ctx, "temp");
 
     do
     {

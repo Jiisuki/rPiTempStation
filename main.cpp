@@ -14,7 +14,7 @@ static common::abortable_delay* loop_delay;
 
 int main()
 {
-    loop_delay = new common::abortable_delay (5000);
+    loop_delay = new common::abortable_delay (1000);
 
     signal(SIGINT, signal_handler);
 
