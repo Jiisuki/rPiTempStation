@@ -1,8 +1,9 @@
 var http = require('http');
 var chart = require('chart.js');
 
-var fn = 'temp_log/2021/10/24/11.csv';
+var fn = 'temp_log/2021/10/24/20.csv';
 
+var ts = [];
 var tmp_list = [];
 
 const csv = require('csv-parser');
@@ -11,11 +12,12 @@ const fs = require('fs');
 fs.createReadStream(fn)
     .pipe(csv({headers:['year', 'month', 'day', 'hour', 'minute', 'second', 'cpu']}))
     .on('data', (row) => {
-        //var date = row['year'] + '-' + row['month'] + '-' + row['day'];
-        //var time = row['hour'] + ':' + row['minute'];
+        var date = row['year'] + '-' + row['month'] + '-' + row['day'];
+        var time = row['hour'] + ':' + row['minute'];
         var cpu_t = parseFloat(row['cpu']);
+
         tmp_list.push(cpu_t);
-        //console.log(date + ' @ ' + time + ' => ' + cpu_t + ' deg.');
+        ts.push(date + " - " + time);
     })
     .on('end', () => {
         console.log('CSV file processed, ' + tmp_list.length + ' entries.');
@@ -23,15 +25,20 @@ fs.createReadStream(fn)
 
 var server = http.createServer(function (req, res)
 {
-    if (req.url == '/')
+    fs.readFile('index.html', 'utf-8', function (err, data)
     {
         res.writeHead(200, {'Content-Type': 'text/html'});
-        res.write('<html>');
-        res.write('<body><p>We have ' + tmp_list.length + ' data points.</p></body>');
-        res.write('</html>');
-        res.end();
-    }
-});
 
-server.listen(5000);
-console.log("Server running at :5000");
+        var x = [];
+        for (var i = 0; i < tmp_list.length; i++)
+            x.push(i);
+
+        data = data.replace('{cpu_temp}', JSON.stringify(tmp_list));
+        data = data.replace('{xval}', JSON.stringify(ts));
+
+        res.write(data);
+        res.end();
+    });
+}).listen(5000, '127.0.0.1');
+
+console.log("Server running at 127.0.0.1:5000/");
