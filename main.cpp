@@ -39,7 +39,7 @@ int main()
         auto time = std::time(nullptr);
 
         /* Generate path */
-        ss << std::put_time(std::localtime(&time), "%Y, %m, %d, %H, %M, %S") << ", ";
+        ss << std::put_time(std::localtime(&time), "%Y,%m,%d,%H,%M,%S") << ",";
         ss << std::to_string(temp_cpu);
 
         publisher.publish(ss.str());
