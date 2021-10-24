@@ -35,6 +35,7 @@ add_subdirectory(modules/cpu_temp)
 add_subdirectory(libraries/ipc)
 add_subdirectory(libraries/common)
 
+add_subdirectory(tools/file_log)
 add_subdirectory(tools/monitor)
 
 target_link_libraries(rPiTempStation cpu_temp)

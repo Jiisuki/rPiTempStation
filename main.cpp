@@ -14,7 +14,7 @@ static common::abortable_delay* loop_delay;
 
 int main()
 {
-    loop_delay = new common::abortable_delay (1000);
+    loop_delay = new common::abortable_delay (60000);
 
     signal(SIGINT, signal_handler);
 
@@ -31,7 +31,16 @@ int main()
         auto temp_cpu = module_cpu_temp.read();
 
         std::stringstream ss {};
-        ss << "cpu temp: " << temp_cpu << " deg.";
+
+        /* Format:
+         *   YYYY, mm, dd, h, M, s, cpu, ...
+         */
+
+        auto time = std::time(nullptr);
+
+        /* Generate path */
+        ss << std::put_time(std::localtime(&time), "%Y, %m, %d, %H, %M, %S") << ", ";
+        ss << std::to_string(temp_cpu);
 
         publisher.publish(ss.str());
     }
