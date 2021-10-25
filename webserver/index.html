@@ -6,27 +6,136 @@
     <script src="https://www.chartjs.org/dist/master/chart.js"></script>
     <!--script src="node_modules/chart.js/dist/chart.js"></script-->
 </head>
-<body>
-    <div style="alignment: center; vertical-align: center; width: 30%; height: 30%;">
-        <h1>{title_str}</h1>
+<body style="display: flex; flex-direction: row; justify-content: center; min-height: 100vh; min-width: 960px;">
+    <div style="width: 90%;">
+        <p style="font-family: Calibri, sans-serif; font-size: 11pt;">Temperature Monitor</p>
+        <form action="#">
+            <!--label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="file_select"></label-->
+            <select style="font-family: Calibri, sans-serif; font-size: 16pt; padding: 8px;" name="file" id="file_select" onchange="this.form.submit()">
+                {opt_prec}
+            </select>
+            <!--input style="font-family: Calibri, sans-serif; font-size: 12pt; padding: 8px;" type="submit" value="Update Now" /-->
+        </form>
         <canvas id="myChart"></canvas>
+        <p style="font-family: sans-serif; font-size: 9pt;">A total of {n_data_points} data points were used to build this chart.</p>
+        <canvas id="myChart2"></canvas>
+        <p style="font-family: sans-serif; font-size: 9pt;">A total of {n_data_points} data points were used to build this chart.</p>
     </div>
     <script>
         const ctx = document.getElementById("myChart").getContext("2d");
         const data = {
             labels: {xval},
             datasets: [{
-                label: "CPU temperature",
-                data: {cpu_temp},
+                label: "Inside",
+                data: {inside_temp},
                 fill: false,
-                borderColor: 'rgb(75,192,192)',
-                pointBorderColor: 'rgb(75,192,192)',
-                tension: 0
+                borderColor: 'rgb(0,192,0)',
+                pointBorderColor: 'rgb(0,192,0)',
+                cubicInterpolationMode: 'monotone',
+                tension: 0.25
+            },
+            {
+                label: "Outside",
+                data: {outside_temp},
+                fill: false,
+                borderColor: 'rgb(0,0,192)',
+                pointBorderColor: 'rgb(0,0,192)',
+                cubicInterpolationMode: 'monotone',
+                tension: 0.25
             }]
         };
         const myChart = new Chart(ctx, {
             type: 'line',
             data: data,
+            options: {
+                responsive: true,
+                aspectRatio: 2,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Inside/Outside temperature curve for period {title_str}'
+                    },
+                    subtitle: {
+                        display: false,
+                        text: ''
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Hour'
+                        },
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Temperature'
+                        },
+                    }
+                },
+            },
+        });
+
+        const ctx2 = document.getElementById("myChart2").getContext("2d");
+        const data2 = {
+            labels: {xval},
+            datasets: [{
+                    label: "CPU",
+                    data: {cpu_temp},
+                    fill: false,
+                    borderColor: 'rgb(192,0,0)',
+                    pointBorderColor: 'rgb(192,0,0)',
+                    cubicInterpolationMode: 'monotone',
+                    tension: 0.25
+                },
+                {
+                    label: "Cabinet",
+                    data: {cabinet_temp},
+                    fill: false,
+                    borderColor: 'rgb(75,192,192)',
+                    pointBorderColor: 'rgb(75,192,192)',
+                    cubicInterpolationMode: 'monotone',
+                    tension: 0.25
+                }]
+        };
+        const myChart2 = new Chart(ctx2, {
+            type: 'line',
+            data: data2,
+            options: {
+                responsive: true,
+                aspectRatio: 2,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Equipment temperature curve for period {title_str}'
+                    },
+                    subtitle: {
+                        display: false,
+                        text: ''
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Hour'
+                        },
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Temperature'
+                        },
+                    }
+                },
+            },
         });
     </script>
 </body>

@@ -10,6 +10,8 @@
 
 static void signal_handler(int v);
 
+float to_be_remoded_random_float(float min, float max);
+
 static common::abortable_delay* loop_delay;
 
 int main()
@@ -30,17 +32,25 @@ int main()
     {
         auto temp_cpu = module_cpu_temp.read();
 
+        /* Dummies */
+        auto temp_inside = temp_cpu - to_be_remoded_random_float(10, 30);
+        auto temp_outside = temp_inside - to_be_remoded_random_float(-5, 10);
+        auto temp_cabinet = temp_cpu - to_be_remoded_random_float(0, 10);
+
         std::stringstream ss {};
 
         /* Format:
-         *   YYYY, mm, dd, h, M, s, cpu, ...
+         *   YYYY, mm, dd, h, M, s, cpu, cabinet, inside, outside
          */
 
         auto time = std::time(nullptr);
 
         /* Generate path */
         ss << std::put_time(std::localtime(&time), "%Y,%m,%d,%H,%M,%S") << ",";
-        ss << std::to_string(temp_cpu);
+        ss << std::to_string(temp_cpu) << ",";
+        ss << std::to_string(temp_cabinet) << ",";
+        ss << std::to_string(temp_inside) << ",";
+        ss << std::to_string(temp_outside);
 
         publisher.publish(ss.str());
     }
@@ -60,3 +70,15 @@ static void signal_handler(int v)
     }
 }
 
+float to_be_remoded_random_float(float min, float max)
+{
+    // this  function assumes max > min, you may want
+    // more robust error checking for a non-debug build
+    assert(max > min);
+    float random = ((float) rand()) / (float) RAND_MAX;
+
+    // generate (in your case) a float between 0 and (4.5-.78)
+    // then add .78, giving you a float between .78 and 4.5
+    float range = max - min;
+    return (random*range) + min;
+}
