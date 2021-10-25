@@ -85,8 +85,8 @@ log_file_t get_filename_from_date(const std::string& base, const std::string& fm
     /* Generate path */
     std::stringstream ss_path {};
     std::stringstream ss_file {};
-    ss_path << base << std::put_time(std::localtime(&time), "%Y/%m/%d/");
-    ss_file << std::put_time(std::localtime(&time), "%H") << fmt;
+    ss_path << base << std::put_time(std::localtime(&time), "%Y/%m/");
+    ss_file << std::put_time(std::localtime(&time), "%d") << fmt;
     log_file_t lf (ss_path.str(), ss_file.str());
     return (std::move(lf));
 }
