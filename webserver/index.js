@@ -2,6 +2,7 @@ const http = require('http');
 const glob = require('glob');
 const csv = require('csv-parser');
 const fs = require('fs');
+const moment = require('moment');
 
 function get_tree (dir) {
     let tree = glob.sync(dir + '**/**/*.csv');
@@ -79,6 +80,8 @@ async function read_file(file) {
         let mem_hour = -1;
         let date = "";
         let time = "";
+        let unixTimestamp = 0;
+        let unixTs0 = -1;
 
         /* Read the file async. */
         fs.createReadStream(file)
@@ -87,6 +90,8 @@ async function read_file(file) {
                 date = row['year'] + '-' + row['month'] + '-' + row['day'];
                 time = row['hour'] + ':' + row['minute'];
 
+                unixTimestamp = moment(date + ' ' + time, 'YYYY-MM-DD HH:mm:ss').unix();
+
                 let cpu_t = parseFloat(row['cpu']);
                 let cabinet_t = parseFloat(row['cabinet']);
                 let inside_t = parseFloat(row['inside']);
@@ -94,6 +99,9 @@ async function read_file(file) {
                 let int_hour = parseInt(row['hour']);
 
                 n_data_points++;
+
+                let use_acc_count = false;
+                let acc_max = 30;
 
                 if (flag_first) {
                     flag_first = false;
@@ -106,16 +114,27 @@ async function read_file(file) {
                     acc_count = 1;
                     acc_hour = int_hour;
                     mem_hour = int_hour;
+                    unixTs0 = unixTimestamp;
+                }
+                else {
+                    /* Just accumulate. */
+                    acc_cpu_t += cpu_t;
+                    acc_cabinet_t += cabinet_t;
+                    acc_inside_t += inside_t;
+                    acc_outside_t += outside_t;
+
+                    acc_count++;
                 }
 
-                if (mem_hour !== int_hour) {
+                if ((use_acc_count && (acc_max <= acc_count)) || (mem_hour !== int_hour)) {
                     temp_list_cpu.push(acc_cpu_t / acc_count);
                     temp_list_cabinet.push(acc_cabinet_t / acc_count);
                     temp_list_inside.push(acc_inside_t / acc_count);
                     temp_list_outside.push(acc_outside_t / acc_count);
 
                     dates.push(date);
-                    ts.push(row['hour'] + ':00');
+                    ts.push(row['hour'] + ':' + row['minute']);
+                    //ts.push(unixTimestamp);
 
                     /* Setup next start. */
                     acc_cpu_t = cpu_t;
@@ -126,14 +145,6 @@ async function read_file(file) {
                     acc_count = 1;
                     acc_hour = int_hour;
                     mem_hour = int_hour;
-                } else {
-                    /* Just accumulate. */
-                    acc_cpu_t += cpu_t;
-                    acc_cabinet_t += cabinet_t;
-                    acc_inside_t += inside_t;
-                    acc_outside_t += outside_t;
-
-                    acc_count++;
                 }
             })
             .on('end', () => {
@@ -146,6 +157,7 @@ async function read_file(file) {
 
                     dates.push(date);
                     ts.push(time);
+                    //ts.push(unixTimestamp);
                 }
 
                 resolve('done');
@@ -198,16 +210,6 @@ var server = http.createServer(function (req, res)
                 fs.readFile('index.html', 'utf-8', function (err, data) {
                     res.writeHead(200, {'Content-Type': 'text/html'});
 
-                    /* Get date from filename */
-                    let date_split = filename.split('/');
-                    let pretty_date = dates[0];
-                    if (date_split) {
-                        pretty_date = date_split[1] + '-' + date_split[2] + '-' + date_split[3].split('.')[0];
-                    }
-
-                    /* Title */
-                    data = data.replace(/{title_str}/g, pretty_date);
-
                     /* Data sets */
                     data = data.replace(/{cpu_temp}/g, JSON.stringify(temp_list_cpu));
                     data = data.replace(/{cabinet_temp}/g, JSON.stringify(temp_list_cabinet));
@@ -216,6 +218,7 @@ var server = http.createServer(function (req, res)
 
                     /* Time series */
                     data = data.replace(/{xval}/g, JSON.stringify(ts));
+                    //data = data.replace(/{xval}/g, JSON.stringify(ts.map(e => e * 1000)));
 
                     /* Debug info. */
                     data = data.replace(/{n_data_points}/g, JSON.stringify(n_data_points));

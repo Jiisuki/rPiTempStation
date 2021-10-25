@@ -3,138 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <title>Temperature Log</title>
-    <script src="https://www.chartjs.org/dist/master/chart.js"></script>
+    <!--script src="https://www.chartjs.org/dist/master/chart.js"></script-->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@^3"></script>
+    <!--script src="https://cdn.jsdelivr.net/npm/moment@^2"></script-->
+    <!--script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1"></script-->
     <!--script src="node_modules/chart.js/dist/chart.js"></script-->
 </head>
 <body style="display: flex; flex-direction: row; justify-content: center; min-height: 100vh; min-width: 960px;">
     <div style="width: 90%;">
-        <p style="font-family: Calibri, sans-serif; font-size: 11pt;">Temperature Monitor</p>
+        <p style="font-family: Calibri, sans-serif; font-size: 11pt;">System Monitor</p>
         <form action="#">
-            <!--label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="file_select"></label-->
+            <label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="file_select"></label>
             <select style="font-family: Calibri, sans-serif; font-size: 16pt; padding: 8px;" name="file" id="file_select" onchange="this.form.submit()">
                 {opt_prec}
             </select>
             <!--input style="font-family: Calibri, sans-serif; font-size: 12pt; padding: 8px;" type="submit" value="Update Now" /-->
         </form>
         <canvas id="myChart"></canvas>
-        <p style="font-family: sans-serif; font-size: 9pt;">A total of {n_data_points} data points were used to build this chart.</p>
         <canvas id="myChart2"></canvas>
-        <p style="font-family: sans-serif; font-size: 9pt;">A total of {n_data_points} data points were used to build this chart.</p>
+        <canvas id="myChart3"></canvas>
+        <p style="font-family: sans-serif; font-size: 9pt;">A total of {n_data_points} data points were used to build these charts.</p>
     </div>
     <script>
-        const ctx = document.getElementById("myChart").getContext("2d");
-        const data = {
-            labels: {xval},
-            datasets: [{
-                label: "Inside",
-                data: {inside_temp},
-                fill: false,
-                borderColor: 'rgb(0,192,0)',
-                pointBorderColor: 'rgb(0,192,0)',
-                cubicInterpolationMode: 'monotone',
-                tension: 0.25
+        const option_tension = 0.25;
+        const option_interpolation = 'monotone';
+        const option_fill = false;
+        const option_type = 'line';
+        const option_aspect_ratio = 3;
+
+        const dataset_inside = {
+            label: "Inside",
+            data: {inside_temp},
+            fill: option_fill,
+            borderColor: 'rgb(0,192,0)',
+            pointBorderColor: 'rgb(0,192,0)',
+            cubicInterpolationMode: option_interpolation,
+            tension: option_tension
+        }
+
+        const dataset_outside = {
+            label: "Outside",
+            data: {outside_temp},
+            fill: option_fill,
+            borderColor: 'rgb(0,0,192)',
+            pointBorderColor: 'rgb(0,0,192)',
+            cubicInterpolationMode: option_interpolation,
+            tension: option_tension
+        }
+
+        const dataset_cpu = {
+            label: "CPU",
+            data: {cpu_temp},
+            fill: option_fill,
+            borderColor: 'rgb(192,0,0)',
+            pointBorderColor: 'rgb(192,0,0)',
+            cubicInterpolationMode: option_interpolation,
+            tension: option_tension
+        }
+
+        const dataset_equipment = {
+            label: "Equipment",
+            data: {cabinet_temp},
+            fill: option_fill,
+            borderColor: 'rgb(75,192,192)',
+            pointBorderColor: 'rgb(75,192,192)',
+            cubicInterpolationMode: option_interpolation,
+            tension: option_tension
+        }
+
+        const option_scales = {
+            x: {
+                title: {
+                    display: true,
+                    text: 'Hour'
+                },
+                /*
+                type: 'timeseries',
+                time: {
+                    displayFormats: {
+                        hour: 'HH:MM'
+                    },
+                    unit: 'hour'
+                }
+                */
             },
-            {
-                label: "Outside",
-                data: {outside_temp},
-                fill: false,
-                borderColor: 'rgb(0,0,192)',
-                pointBorderColor: 'rgb(0,0,192)',
-                cubicInterpolationMode: 'monotone',
-                tension: 0.25
-            }]
-        };
+            y: {
+                title: {
+                    display: true,
+                    text: 'Temperature'
+                },
+            }
+        }
+
+        const ctx = document.getElementById("myChart").getContext("2d");
         const myChart = new Chart(ctx, {
-            type: 'line',
-            data: data,
+            type: option_type,
+            data: {labels: {xval}, datasets: [dataset_inside, dataset_outside]},
             options: {
                 responsive: true,
-                aspectRatio: 2,
+                aspectRatio: option_aspect_ratio,
                 plugins: {
                     legend: {
                         position: 'top',
                     },
                     title: {
                         display: true,
-                        text: 'Inside/Outside temperature curve for period {title_str}'
+                        text: 'Room temperature'
                     },
-                    subtitle: {
-                        display: false,
-                        text: ''
-                    }
                 },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Hour'
-                        },
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Temperature'
-                        },
-                    }
-                },
+                scales: option_scales
             },
         });
 
         const ctx2 = document.getElementById("myChart2").getContext("2d");
-        const data2 = {
-            labels: {xval},
-            datasets: [{
-                    label: "CPU",
-                    data: {cpu_temp},
-                    fill: false,
-                    borderColor: 'rgb(192,0,0)',
-                    pointBorderColor: 'rgb(192,0,0)',
-                    cubicInterpolationMode: 'monotone',
-                    tension: 0.25
-                },
-                {
-                    label: "Cabinet",
-                    data: {cabinet_temp},
-                    fill: false,
-                    borderColor: 'rgb(75,192,192)',
-                    pointBorderColor: 'rgb(75,192,192)',
-                    cubicInterpolationMode: 'monotone',
-                    tension: 0.25
-                }]
-        };
         const myChart2 = new Chart(ctx2, {
-            type: 'line',
-            data: data2,
+            type: option_type,
+            data: {labels: {xval}, datasets: [dataset_equipment]},
             options: {
                 responsive: true,
-                aspectRatio: 2,
+                aspectRatio: option_aspect_ratio,
                 plugins: {
                     legend: {
+                        display: false,
                         position: 'top',
                     },
                     title: {
                         display: true,
-                        text: 'Equipment temperature curve for period {title_str}'
+                        text: 'Equipment Temperature'
                     },
-                    subtitle: {
+                },
+                scales: option_scales
+            },
+        });
+
+        const ctx3 = document.getElementById("myChart3").getContext("2d");
+        const myChart3 = new Chart(ctx3, {
+            type: option_type,
+            data: {labels: {xval}, datasets: [dataset_cpu]},
+            options: {
+                responsive: true,
+                aspectRatio: option_aspect_ratio,
+                plugins: {
+                    legend: {
                         display: false,
-                        text: ''
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Hour'
-                        },
+                        position: 'top',
                     },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Temperature'
-                        },
-                    }
+                    title: {
+                        display: true,
+                        text: 'CPU Temperature'
+                    },
                 },
+                scales: option_scales
             },
         });
     </script>
