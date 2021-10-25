@@ -33,9 +33,9 @@ int main()
         auto temp_cpu = module_cpu_temp.read();
 
         /* Dummies */
-        auto temp_inside = temp_cpu - to_be_remoded_random_float(10, 30);
-        auto temp_outside = temp_inside - to_be_remoded_random_float(-5, 10);
-        auto temp_cabinet = temp_cpu - to_be_remoded_random_float(0, 10);
+        auto temp_inside = temp_cpu - to_be_remoded_random_float(30, 40);
+        auto temp_outside = temp_inside - to_be_remoded_random_float(-10, 10);
+        auto temp_cabinet = temp_cpu - to_be_remoded_random_float(0, 20);
 
         std::stringstream ss {};
 

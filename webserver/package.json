@@ -12,9 +12,8 @@
   "dependencies": {
     "chart.js": "^3.6.0",
     "csv-parser": "^3.0.0",
-    "glob": "^7.2.0"
-  },
-  "devDependencies": {
-    "walker": "^1.0.8"
+    "glob": "^7.2.0",
+    "moment": "^2.29.1",
+    "zeromq": "^5.2.8"
   }
 }

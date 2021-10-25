@@ -19,13 +19,16 @@ void touch_file(const log_file_t& lf);
 bool is_log_file_equal(const log_file_t& l1, const log_file_t& l2);
 log_file_t get_filename_from_date(const std::string& base, const std::string& fmt);
 void add_data_point(const std::string& filename, const std::string& csv);
+void write_last_minute_data_point(const std::string& filename, const std::string& csv);
 
 int main ()
 {
     /* Try to get current date as a file name. */
-    auto current_filename = get_filename_from_date("/home/pi/temp_log/", ".csv");
+    auto current_filename = get_filename_from_date("/home/pi/temp_log/minute_logs/", ".csv");
     std::cout << "Writing temperatures to " << current_filename.first << current_filename.second << std::endl;
     touch_file(current_filename);
+
+    auto last_update_filename = "/home/pi/temp_log/last_minute.csv";
 
     loop_delay = new common::abortable_delay (100);
 
@@ -34,7 +37,7 @@ int main ()
 
     do
     {
-        const auto f = get_filename_from_date("/home/pi/temp_log/", ".csv");
+        const auto f = get_filename_from_date("/home/pi/temp_log/minute_logs/", ".csv");
         if (!is_log_file_equal(f, current_filename))
         {
             std::cout << "Switching log file to: " << f.first << f.second << std::endl;
@@ -49,6 +52,13 @@ int main ()
             if (subscriber.poll(topic, msg))
             {
                 add_data_point(current_filename.first + current_filename.second, msg);
+
+                static unsigned int c = 0;
+                c = (c + 1) % 5;
+                if (0 == c)
+                {
+                    write_last_minute_data_point(last_update_filename, msg);
+                }
             }
         }
         catch (const zmq::error_t& error)
@@ -67,6 +77,20 @@ int main ()
 void add_data_point(const std::string& filename, const std::string& csv)
 {
     std::ofstream out(filename, std::ios::app);
+    if (out.is_open())
+    {
+        out << csv << std::endl;
+        out.close();
+    }
+    else
+    {
+        std::cerr << "Error writing to file " << filename << std::endl;
+    }
+}
+
+void write_last_minute_data_point(const std::string& filename, const std::string& csv)
+{
+    std::ofstream out(filename, std::ios::out);
     if (out.is_open())
     {
         out << csv << std::endl;

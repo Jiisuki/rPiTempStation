@@ -13,10 +13,15 @@ function get_tree (dir) {
     return tree;
 }
 
-let base_dir = 'temp_log/';
+let base_dir = 'temp_log/minute_logs/';
 if (2 < process.argv.length) {
     console.log('Using base directory: "' + process.argv[2] + '"');
-    base_dir = process.argv[2] + '/temp_log/';
+    base_dir = process.argv[2] + '/temp_log/minute_logs/';
+}
+
+let last_update_file = 'temp_log/last_minute.csv';
+if (2 < process.argv.length) {
+    last_update_file = process.argv[2] + '/temp_log/last_minute.csv';
 }
 
 let tree = get_tree(base_dir);
@@ -59,7 +64,7 @@ function generate_file_options(selected) {
 }
 
 async function read_file(file) {
-    let promise = new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         /* Set timeout for parsing the data. */
         setTimeout(() => reject(new Error('Unable to parse.')), 1000);
 
@@ -115,8 +120,7 @@ async function read_file(file) {
                     acc_hour = int_hour;
                     mem_hour = int_hour;
                     unixTs0 = unixTimestamp;
-                }
-                else {
+                } else {
                     /* Just accumulate. */
                     acc_cpu_t += cpu_t;
                     acc_cabinet_t += cabinet_t;
@@ -166,18 +170,49 @@ async function read_file(file) {
                 reject('error');
             });
     });
-
-    return promise;
 }
 
-var params=function(req){
-    let q=req.url.split('?'),result={};
-    if(q.length>=2){
-        q[1].split('&').forEach((item)=>{
+let last_ping_date = "";
+let last_ping_time = "";
+let last_ping_cpu_t = 0;
+let last_ping_cabinet_t = 0;
+let last_ping_inside_t = 0;
+let last_ping_outside_t = 0;
+
+async function read_last_minute_file(file) {
+    return new Promise(function (resolve, reject) {
+        /* Set timeout for parsing the data. */
+        setTimeout(() => reject(new Error('Unable to parse.')), 1000);
+
+        /* Read the file async. */
+        fs.createReadStream(file)
+            .pipe(csv({headers: ['year', 'month', 'day', 'hour', 'minute', 'second', 'cpu', 'cabinet', 'inside', 'outside']}))
+            .on('data', (row) => {
+                last_ping_date = row['year'] + '-' + row['month'] + '-' + row['day'];
+                last_ping_time = row['hour'] + ':' + row['minute'];
+
+                last_ping_cpu_t = parseFloat(row['cpu']);
+                last_ping_cabinet_t = parseFloat(row['cabinet']);
+                last_ping_inside_t = parseFloat(row['inside']);
+                last_ping_outside_t = parseFloat(row['outside']);
+            })
+            .on('end', () => {
+                resolve('done');
+            })
+            .on('error', () => {
+                reject('error');
+            });
+    });
+}
+
+var params=function(req) {
+    let q = req.url.split('?'), result = {};
+    if (q.length >= 2) {
+        q[1].split('&').forEach((item) => {
             try {
-                result[item.split('=')[0]]=item.split('=')[1];
+                result[item.split('=')[0]] = item.split('=')[1];
             } catch (e) {
-                result[item.split('=')[0]]='';
+                result[item.split('=')[0]] = '';
             }
         })
     }
@@ -192,7 +227,6 @@ var server = http.createServer(function (req, res)
 
         /* Config. */
         let in_parameters = params(req);
-        //console.log(in_parameters);
 
         let filename = base_dir + tree[tree.length - 1];
         if (in_parameters.file)
@@ -200,13 +234,25 @@ var server = http.createServer(function (req, res)
             filename = base_dir + in_parameters.file.replace(/-/gi, '/');
         }
 
+        let last_minute_promise = read_last_minute_file(last_update_file);
+        last_minute_promise.then(
+            function (result) {
+                console.log('Updated last minute information.');
+            },
+            function (error) { /* handle an error */
+                console.log('Error processing file.');
+                fs.readFile('error.html', 'utf-8', function (err, data) {
+                    res.writeHead(200, {'Content-Type': 'text/html'});
+                    res.write(data);
+                    res.end();
+                });
+            });
+
         console.log('Loading file: ' + filename + '.csv');
         let promise = read_file(filename + '.csv', false);
 
         promise.then(
             function (result) { /* handle a successful result */
-                //console.log(filename + ' processed resulting in ' + temp_list_cpu.length + ' entries.');
-
                 fs.readFile('index.html', 'utf-8', function (err, data) {
                     res.writeHead(200, {'Content-Type': 'text/html'});
 
@@ -222,6 +268,14 @@ var server = http.createServer(function (req, res)
 
                     /* Debug info. */
                     data = data.replace(/{n_data_points}/g, JSON.stringify(n_data_points));
+
+                    /* Last minute info. */
+                    data = data.replace(/{last_cpu_t}/g, JSON.stringify(last_ping_cpu_t));
+                    data = data.replace(/{last_cabinet_t}/g, JSON.stringify(last_ping_cabinet_t));
+                    data = data.replace(/{last_inside_t}/g, JSON.stringify(last_ping_inside_t));
+                    data = data.replace(/{last_outside_t}/g, JSON.stringify(last_ping_outside_t));
+                    data = data.replace(/{last_date}/g, last_ping_date);
+                    data = data.replace(/{last_time}/g, last_ping_time);
 
                     /* Manage options. */
                     let options = generate_file_options(filename.substr(base_dir.length));

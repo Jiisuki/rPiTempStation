@@ -20,8 +20,9 @@
             <!--input style="font-family: Calibri, sans-serif; font-size: 12pt; padding: 8px;" type="submit" value="Update Now" /-->
         </form>
         <canvas id="myChart"></canvas>
-        <canvas id="myChart2"></canvas>
-        <canvas id="myChart3"></canvas>
+        <canvas id="myChart1"></canvas>
+        <!--canvas id="myChart2"></canvas-->
+        <!--canvas id="myChart3"></canvas-->
         <p style="font-family: sans-serif; font-size: 9pt;">A total of {n_data_points} data points were used to build these charts.</p>
     </div>
     <script>
@@ -31,12 +32,23 @@
         const option_type = 'line';
         const option_aspect_ratio = 3;
 
+        const bg_cpu     = 'rgba(255, 205, 86, 0.2)';
+        const bg_cabinet = 'rgba(255, 159, 64, 0.2)';
+        const bg_inside  = 'rgba(75, 192, 192, 0.2)';
+        const bg_outside = 'rgba(255, 99, 132, 0.2)';
+
+        const border_cpu     = 'rgb(255, 205, 86)';
+        const border_cabinet = 'rgb(255, 159, 64)';
+        const border_inside  = 'rgb(75, 192, 192)';
+        const border_outside = 'rgb(255, 99, 132)';
+
         const dataset_inside = {
             label: "Inside",
             data: {inside_temp},
             fill: option_fill,
-            borderColor: 'rgb(0,192,0)',
-            pointBorderColor: 'rgb(0,192,0)',
+            borderColor: border_inside,
+            backgroundColor: bg_inside,
+            pointBorderColor: bg_inside,
             cubicInterpolationMode: option_interpolation,
             tension: option_tension
         }
@@ -45,8 +57,9 @@
             label: "Outside",
             data: {outside_temp},
             fill: option_fill,
-            borderColor: 'rgb(0,0,192)',
-            pointBorderColor: 'rgb(0,0,192)',
+            borderColor: border_outside,
+            backgroundColor: bg_outside,
+            pointBorderColor: bg_outside,
             cubicInterpolationMode: option_interpolation,
             tension: option_tension
         }
@@ -55,8 +68,9 @@
             label: "CPU",
             data: {cpu_temp},
             fill: option_fill,
-            borderColor: 'rgb(192,0,0)',
-            pointBorderColor: 'rgb(192,0,0)',
+            borderColor: border_cpu,
+            backgroundColor: bg_cpu,
+            pointBorderColor: bg_cpu,
             cubicInterpolationMode: option_interpolation,
             tension: option_tension
         }
@@ -65,10 +79,20 @@
             label: "Equipment",
             data: {cabinet_temp},
             fill: option_fill,
-            borderColor: 'rgb(75,192,192)',
-            pointBorderColor: 'rgb(75,192,192)',
+            borderColor: border_cabinet,
+            backgroundColor: bg_cabinet,
+            pointBorderColor: bg_cabinet,
             cubicInterpolationMode: option_interpolation,
             tension: option_tension
+        }
+
+        const dataset_last_minute = {
+            label: "Last minute",
+            data: [{last_cpu_t}, {last_cabinet_t}, {last_inside_t}, {last_outside_t}],
+            fill: option_fill,
+            backgroundColor: [bg_cpu, bg_cabinet, bg_inside, bg_outside],
+            borderColor: [border_cpu, border_cabinet, border_inside, border_outside],
+            borderWidth: 2
         }
 
         const option_scales = {
@@ -77,15 +101,6 @@
                     display: true,
                     text: 'Hour'
                 },
-                /*
-                type: 'timeseries',
-                time: {
-                    displayFormats: {
-                        hour: 'HH:MM'
-                    },
-                    unit: 'hour'
-                }
-                */
             },
             y: {
                 title: {
@@ -97,8 +112,29 @@
 
         const ctx = document.getElementById("myChart").getContext("2d");
         const myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {labels: ['CPU', 'Equipment', 'Inside', 'Outside'], datasets: [dataset_last_minute]},
+            options: {
+                responsive: true,
+                aspectRatio: 6,
+                plugins: {
+                    legend: {
+                        display: false,
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Last updated {last_date} {last_time}'
+                    },
+                },
+                //scales: option_scales
+            },
+        });
+
+        const ctx1 = document.getElementById("myChart1").getContext("2d");
+        const myChart1 = new Chart(ctx1, {
             type: option_type,
-            data: {labels: {xval}, datasets: [dataset_inside, dataset_outside]},
+            data: {labels: {xval}, datasets: [dataset_inside, dataset_outside, dataset_equipment, dataset_cpu]},
             options: {
                 responsive: true,
                 aspectRatio: option_aspect_ratio,
@@ -115,6 +151,7 @@
             },
         });
 
+        /*
         const ctx2 = document.getElementById("myChart2").getContext("2d");
         const myChart2 = new Chart(ctx2, {
             type: option_type,
@@ -156,6 +193,7 @@
                 scales: option_scales
             },
         });
+         */
     </script>
 </body>
 </html>
