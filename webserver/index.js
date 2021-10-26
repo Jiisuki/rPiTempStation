@@ -4,6 +4,11 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const moment = require('moment');
 
+//moment.locale('sv-SE');
+moment.locale('en-GB');
+const tz = '+0200';
+const decimation_interval_min = 30;
+
 function get_tree (dir) {
     let tree = glob.sync(dir + '**/**/*.csv');
     tree.forEach(function (value, index) {
@@ -63,106 +68,55 @@ function generate_file_options(selected) {
     return options;
 }
 
-async function read_file(file) {
+async function read_file(file, interval_minute) {
     return new Promise(function (resolve, reject) {
         /* Set timeout for parsing the data. */
         setTimeout(() => reject(new Error('Unable to parse.')), 1000);
 
         /* Setup accumulators. */
-        let acc_cpu_t = 0;
-        let acc_cabinet_t = 0;
-        let acc_inside_t = 0;
-        let acc_outside_t = 0;
-
-        let acc_count = 0;
-        let acc_hour = 0;
+        let cpu_t = 0.0;
+        let cabinet_t = 0.0;
+        let inside_t = 0.0;
+        let outside_t = 0.0;
         n_data_points = 0;
 
-        /* Setup flags. */
-        let flag_first = true;
-
         /* Iteration memory. */
-        let mem_hour = -1;
         let date = "";
         let time = "";
         let unixTimestamp = 0;
-        let unixTs0 = -1;
+        let unixTs0 = 0;
 
         /* Read the file async. */
         fs.createReadStream(file)
-            .pipe(csv({headers: ['year', 'month', 'day', 'hour', 'minute', 'second', 'cpu', 'cabinet', 'inside', 'outside']}))
+            .pipe(csv({headers: ['ts', 'cpu', 'cabinet', 'inside', 'outside']}))
             .on('data', (row) => {
-                date = row['year'] + '-' + row['month'] + '-' + row['day'];
-                time = row['hour'] + ':' + row['minute'];
+                unixTimestamp = parseInt(row['ts']);
 
-                unixTimestamp = moment(date + ' ' + time, 'YYYY-MM-DD HH:mm:ss').unix();
+                cpu_t = parseFloat(row['cpu']);
+                cabinet_t = parseFloat(row['cabinet']);
+                inside_t = parseFloat(row['inside']);
+                outside_t = parseFloat(row['outside']);
 
-                let cpu_t = parseFloat(row['cpu']);
-                let cabinet_t = parseFloat(row['cabinet']);
-                let inside_t = parseFloat(row['inside']);
-                let outside_t = parseFloat(row['outside']);
-                let int_hour = parseInt(row['hour']);
 
-                n_data_points++;
-
-                let use_acc_count = false;
-                let acc_max = 30;
-
-                if (flag_first) {
-                    flag_first = false;
-
-                    acc_cpu_t = cpu_t;
-                    acc_cabinet_t = cabinet_t;
-                    acc_inside_t = inside_t;
-                    acc_outside_t = outside_t;
-
-                    acc_count = 1;
-                    acc_hour = int_hour;
-                    mem_hour = int_hour;
+                if ((interval_minute * 60) <= (unixTimestamp - unixTs0)) {
+                    temp_list_cpu.push(cpu_t);
+                    temp_list_cabinet.push(cabinet_t);
+                    temp_list_inside.push(inside_t);
+                    temp_list_outside.push(outside_t);
+                    dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
+                    ts.push(unixTimestamp);
+                    n_data_points++;
                     unixTs0 = unixTimestamp;
-                } else {
-                    /* Just accumulate. */
-                    acc_cpu_t += cpu_t;
-                    acc_cabinet_t += cabinet_t;
-                    acc_inside_t += inside_t;
-                    acc_outside_t += outside_t;
-
-                    acc_count++;
-                }
-
-                if ((use_acc_count && (acc_max <= acc_count)) || (mem_hour !== int_hour)) {
-                    temp_list_cpu.push(acc_cpu_t / acc_count);
-                    temp_list_cabinet.push(acc_cabinet_t / acc_count);
-                    temp_list_inside.push(acc_inside_t / acc_count);
-                    temp_list_outside.push(acc_outside_t / acc_count);
-
-                    dates.push(date);
-                    ts.push(row['hour'] + ':' + row['minute']);
-                    //ts.push(unixTimestamp);
-
-                    /* Setup next start. */
-                    acc_cpu_t = cpu_t;
-                    acc_cabinet_t = cabinet_t;
-                    acc_inside_t = inside_t;
-                    acc_outside_t = outside_t;
-
-                    acc_count = 1;
-                    acc_hour = int_hour;
-                    mem_hour = int_hour;
                 }
             })
             .on('end', () => {
-                /* Check if accumulator is running... */
-                if (0 < acc_count) {
-                    temp_list_cpu.push(acc_cpu_t / acc_count);
-                    temp_list_cabinet.push(acc_cabinet_t / acc_count);
-                    temp_list_inside.push(acc_inside_t / acc_count);
-                    temp_list_outside.push(acc_outside_t / acc_count);
-
-                    dates.push(date);
-                    ts.push(time);
-                    //ts.push(unixTimestamp);
-                }
+                temp_list_cpu.push(cpu_t);
+                temp_list_cabinet.push(cabinet_t);
+                temp_list_inside.push(inside_t);
+                temp_list_outside.push(outside_t);
+                dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
+                ts.push(unixTimestamp);
+                n_data_points++;
 
                 resolve('done');
             })
@@ -186,10 +140,11 @@ async function read_last_minute_file(file) {
 
         /* Read the file async. */
         fs.createReadStream(file)
-            .pipe(csv({headers: ['year', 'month', 'day', 'hour', 'minute', 'second', 'cpu', 'cabinet', 'inside', 'outside']}))
+            .pipe(csv({headers: ['ts', 'cpu', 'cabinet', 'inside', 'outside']}))
             .on('data', (row) => {
-                last_ping_date = row['year'] + '-' + row['month'] + '-' + row['day'];
-                last_ping_time = row['hour'] + ':' + row['minute'];
+                //last_ping_date = "2021-01-01";
+                //last_ping_time = row['ts'];
+                last_ping_date = (moment(parseInt(row['ts']), 'X').utcOffset(tz).format('LLL'));
 
                 last_ping_cpu_t = parseFloat(row['cpu']);
                 last_ping_cabinet_t = parseFloat(row['cabinet']);
@@ -249,7 +204,7 @@ var server = http.createServer(function (req, res)
             });
 
         console.log('Loading file: ' + filename + '.csv');
-        let promise = read_file(filename + '.csv', false);
+        let promise = read_file(filename + '.csv', decimation_interval_min);
 
         promise.then(
             function (result) { /* handle a successful result */
@@ -263,8 +218,8 @@ var server = http.createServer(function (req, res)
                     data = data.replace(/{outside_temp}/g, JSON.stringify(temp_list_outside));
 
                     /* Time series */
-                    data = data.replace(/{xval}/g, JSON.stringify(ts));
-                    //data = data.replace(/{xval}/g, JSON.stringify(ts.map(e => e * 1000)));
+                    //data = data.replace(/{xval}/g, JSON.stringify(ts));
+                    data = data.replace(/{xval}/g, JSON.stringify(ts.map(e => e * 1000)));
 
                     /* Debug info. */
                     data = data.replace(/{n_data_points}/g, JSON.stringify(n_data_points));

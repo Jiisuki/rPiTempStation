@@ -5,8 +5,8 @@
     <title>Temperature Log</title>
     <!--script src="https://www.chartjs.org/dist/master/chart.js"></script-->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@^3"></script>
-    <!--script src="https://cdn.jsdelivr.net/npm/moment@^2"></script-->
-    <!--script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1"></script-->
+    <script src="https://cdn.jsdelivr.net/npm/moment@^2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1"></script>
     <!--script src="node_modules/chart.js/dist/chart.js"></script-->
 </head>
 <body style="display: flex; flex-direction: row; justify-content: center; min-height: 100vh; min-width: 960px;">
@@ -99,8 +99,19 @@
             x: {
                 title: {
                     display: true,
-                    text: 'Hour'
+                    text: 'Time of Day'
                 },
+                type: 'time',//series'
+                distribution: 'series',
+                time: {
+                    displayFormats: {
+                        hour: 'HH:mm',
+                        minute: 'HH:mm'
+                    },
+                    minUnit: 'minute',
+                    isoWeekday: true,
+                    stepSize: 15
+                }
             },
             y: {
                 title: {
@@ -115,6 +126,7 @@
             type: 'bar',
             data: {labels: ['CPU', 'Equipment', 'Inside', 'Outside'], datasets: [dataset_last_minute]},
             options: {
+                animation: true,
                 responsive: true,
                 aspectRatio: 6,
                 plugins: {
@@ -136,8 +148,18 @@
             type: option_type,
             data: {labels: {xval}, datasets: [dataset_inside, dataset_outside, dataset_equipment, dataset_cpu]},
             options: {
+                animation: true,
+                interaction: {
+                    intersect: false
+                },
                 responsive: true,
                 aspectRatio: option_aspect_ratio,
+                locale: 'en-GB',
+                elements: {
+                    point: {
+                        radius: 0
+                    }
+                },
                 plugins: {
                     legend: {
                         position: 'top',
