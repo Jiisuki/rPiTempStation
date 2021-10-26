@@ -180,6 +180,16 @@ var server = http.createServer(function (req, res)
         /* Clear data. */
         clear_globals();
 
+        /* Update tree. */
+        let old_count = tree.length;
+        tree = get_tree(base_dir);
+        if (old_count !== tree.length) {
+            console.log('Updated tree structure.', tree.length + ' files found:');
+            tree.forEach(function(item, index) {
+                console.log(index, item);
+            });
+        }
+
         /* Config. */
         let in_parameters = params(req);
 
