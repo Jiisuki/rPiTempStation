@@ -5,6 +5,8 @@
 #include <vector>
 
 #include <cpu_temp.h>
+#include <sht31d.h>
+
 #include <gr_ipc.h>
 #include <common.h>
 
@@ -16,12 +18,15 @@ static common::abortable_delay* loop_delay;
 
 int main()
 {
-    loop_delay = new common::abortable_delay (60000);
+    loop_delay = new common::abortable_delay (1000);
 
     signal(SIGINT, signal_handler);
 
     /* Creating sub-modules. */
     cpu_temp::reader module_cpu_temp {};
+    sht31d::reader module_inside (0x44);
+    // todo:
+    //sht31d::reader module_outside (0x45);
 
     /* Creating publisher. */
     ipc::context_t ctx {};
@@ -31,26 +36,30 @@ int main()
     do
     {
         auto temp_cpu = module_cpu_temp.read();
-
-        /* Dummies */
-        auto temp_inside = temp_cpu - to_be_remoded_random_float(30, 40);
-        auto temp_outside = temp_inside - to_be_remoded_random_float(-10, 10);
-        auto temp_cabinet = temp_cpu - to_be_remoded_random_float(0, 20);
+        auto inside_data = module_inside.get();
+        // todo:
+        //auto outside_data = module_outside.get();
 
         std::stringstream ss {};
 
         /* Format:
-         *   YYYY, mm, dd, h, M, s, cpu, cabinet, inside, outside
+         *   unix_ts, cpu, inside_t, inside_rh, outside_t, outside_rh
          */
 
         auto time = std::time(nullptr);
 
         /* Generate path */
-        ss << std::put_time(std::localtime(&time), "%Y,%m,%d,%H,%M,%S") << ",";
+        //ss << std::put_time(std::localtime(&time), "%Y,%m,%d,%H,%M,%S") << ",";
+        ss << std::to_string((unsigned int) time) << ",";
         ss << std::to_string(temp_cpu) << ",";
-        ss << std::to_string(temp_cabinet) << ",";
-        ss << std::to_string(temp_inside) << ",";
-        ss << std::to_string(temp_outside);
+        ss << std::to_string(inside_data.temperature) << ",";
+        ss << std::to_string(inside_data.relative_humidity) << ",";
+        // dummies:
+        ss << std::to_string(0) << ",";
+        ss << std::to_string(0);
+        // todo:
+        //ss << std::to_string(outside_data.temperature) << ",";
+        //ss << std::to_string(outside_data.relative_humidity);
 
         publisher.publish(ss.str());
     }

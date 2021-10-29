@@ -75,20 +75,9 @@
             tension: option_tension
         }
 
-        const dataset_equipment = {
-            label: "Equipment",
-            data: {cabinet_temp},
-            fill: option_fill,
-            borderColor: border_cabinet,
-            backgroundColor: bg_cabinet,
-            pointBorderColor: bg_cabinet,
-            cubicInterpolationMode: option_interpolation,
-            tension: option_tension
-        }
-
         const dataset_last_minute = {
             label: "Last minute",
-            data: [{last_cpu_t}, {last_cabinet_t}, {last_inside_t}, {last_outside_t}],
+            data: [{last_cpu_t}, {last_inside_t}, {last_outside_t}],
             fill: option_fill,
             backgroundColor: [bg_cpu, bg_cabinet, bg_inside, bg_outside],
             borderColor: [border_cpu, border_cabinet, border_inside, border_outside],
@@ -108,9 +97,9 @@
                         hour: 'HH:mm',
                         minute: 'HH:mm'
                     },
-                    minUnit: 'minute',
+                    minUnit: 'hour',
                     isoWeekday: true,
-                    stepSize: 15
+                    stepSize: 0.5
                 }
             },
             y: {
@@ -124,11 +113,21 @@
         const ctx = document.getElementById("myChart").getContext("2d");
         const myChart = new Chart(ctx, {
             type: 'bar',
-            data: {labels: ['CPU', 'Equipment', 'Inside', 'Outside'], datasets: [dataset_last_minute]},
+            data: {labels: ['CPU', 'Inside', 'Outside'], datasets: [dataset_last_minute]},
             options: {
                 animation: true,
                 responsive: true,
-                aspectRatio: 6,
+                    /*
+                tooltipTemplate: '<%= value %>',
+                tooltipFillColor: 'rgba(0,0,0,0)',
+                tooltipFontColor: 'rgb(0,0,0)',
+                tooltipEvents: [],
+                tooltipCaretSize: 0,
+                onAnimationComplete: function() {
+                    this.showTooltip(this.datasets[0].bars, true);
+                },
+                    */
+                aspectRatio: 9,
                 plugins: {
                     legend: {
                         display: false,
@@ -146,7 +145,7 @@
         const ctx1 = document.getElementById("myChart1").getContext("2d");
         const myChart1 = new Chart(ctx1, {
             type: option_type,
-            data: {labels: {xval}, datasets: [dataset_inside, dataset_outside, dataset_equipment, dataset_cpu]},
+            data: {labels: {xval}, datasets: [dataset_inside, dataset_outside, dataset_cpu]},
             options: {
                 animation: true,
                 interaction: {

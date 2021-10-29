@@ -1,4 +1,4 @@
-const http = require('http');
+const https = require('https');
 const glob = require('glob');
 const csv = require('csv-parser');
 const fs = require('fs');
@@ -18,6 +18,12 @@ function get_tree (dir) {
     return tree;
 }
 
+/* Read SSL certificate. */
+const https_options = {
+    key: fs.readFileSync('key.pem'),
+    cert: fs.readFileSync('cert.pem')
+};
+
 let base_dir = 'temp_log/minute_logs/';
 if (2 < process.argv.length) {
     console.log('Using base directory: "' + process.argv[2] + '"');
@@ -36,9 +42,10 @@ tree.forEach(function(item, index) {
 });
 
 let temp_list_cpu = [];
-let temp_list_cabinet = [];
 let temp_list_inside = [];
 let temp_list_outside = [];
+let rh_list_inside = [];
+let rh_list_outside = [];
 let dates = [];
 let ts = [];
 let n_data_points = 0;
@@ -48,16 +55,17 @@ function clear_globals() {
     dates = [];
     n_data_points = 0;
     temp_list_cpu = [];
-    temp_list_cabinet = [];
     temp_list_inside = [];
     temp_list_outside = [];
+    rh_list_inside = [];
+    rh_list_outside = [];
 }
 
 function generate_file_options(selected) {
     let options = "";
     tree.forEach(function (value, index) {
         let v = value.replace(/\//g, '-');
-        if (value === selected)
+        if (v === selected)
         {
             options += '<option value="' + v + '" selected>' + v + '</option>';
         }
@@ -75,34 +83,34 @@ async function read_file(file, interval_minute) {
 
         /* Setup accumulators. */
         let cpu_t = 0.0;
-        let cabinet_t = 0.0;
         let inside_t = 0.0;
         let outside_t = 0.0;
+        let inside_rh = 0.0;
+        let outside_rh = 0.0;
         n_data_points = 0;
 
         /* Iteration memory. */
-        let date = "";
-        let time = "";
         let unixTimestamp = 0;
         let unixTs0 = 0;
 
         /* Read the file async. */
         fs.createReadStream(file)
-            .pipe(csv({headers: ['ts', 'cpu', 'cabinet', 'inside', 'outside']}))
+            .pipe(csv({headers: ['ts', 'cpu', 'inside_t', 'inside_rh', 'outside_t', 'outside_rh']}))
             .on('data', (row) => {
                 unixTimestamp = parseInt(row['ts']);
 
                 cpu_t = parseFloat(row['cpu']);
-                cabinet_t = parseFloat(row['cabinet']);
-                inside_t = parseFloat(row['inside']);
-                outside_t = parseFloat(row['outside']);
-
+                inside_t = parseFloat(row['inside_t']);
+                outside_t = parseFloat(row['outside_t']);
+                inside_rh = parseFloat(row['inside_rh']);
+                outside_rh = parseFloat(row['outside_rh']);
 
                 if ((interval_minute * 60) <= (unixTimestamp - unixTs0)) {
                     temp_list_cpu.push(cpu_t);
-                    temp_list_cabinet.push(cabinet_t);
                     temp_list_inside.push(inside_t);
                     temp_list_outside.push(outside_t);
+                    rh_list_inside.push(inside_rh);
+                    rh_list_outside.push(outside_rh);
                     dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
                     ts.push(unixTimestamp);
                     n_data_points++;
@@ -111,9 +119,10 @@ async function read_file(file, interval_minute) {
             })
             .on('end', () => {
                 temp_list_cpu.push(cpu_t);
-                temp_list_cabinet.push(cabinet_t);
                 temp_list_inside.push(inside_t);
                 temp_list_outside.push(outside_t);
+                rh_list_inside.push(inside_rh);
+                rh_list_outside.push(outside_rh);
                 dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
                 ts.push(unixTimestamp);
                 n_data_points++;
@@ -129,9 +138,10 @@ async function read_file(file, interval_minute) {
 let last_ping_date = "";
 let last_ping_time = "";
 let last_ping_cpu_t = 0;
-let last_ping_cabinet_t = 0;
 let last_ping_inside_t = 0;
 let last_ping_outside_t = 0;
+let last_ping_inside_rh = 0;
+let last_ping_outside_rh = 0;
 
 async function read_last_minute_file(file) {
     return new Promise(function (resolve, reject) {
@@ -140,16 +150,17 @@ async function read_last_minute_file(file) {
 
         /* Read the file async. */
         fs.createReadStream(file)
-            .pipe(csv({headers: ['ts', 'cpu', 'cabinet', 'inside', 'outside']}))
+            .pipe(csv({headers: ['ts', 'cpu', 'inside_t', 'inside_rh', 'outside_t', 'outside_rh']}))
             .on('data', (row) => {
                 //last_ping_date = "2021-01-01";
                 //last_ping_time = row['ts'];
                 last_ping_date = (moment(parseInt(row['ts']), 'X').utcOffset(tz).format('LLL'));
 
                 last_ping_cpu_t = parseFloat(row['cpu']);
-                last_ping_cabinet_t = parseFloat(row['cabinet']);
-                last_ping_inside_t = parseFloat(row['inside']);
-                last_ping_outside_t = parseFloat(row['outside']);
+                last_ping_inside_t = parseFloat(row['inside_t']);
+                last_ping_outside_t = parseFloat(row['outside_t']);
+                last_ping_inside_rh = parseFloat(row['inside_rh']);
+                last_ping_outside_rh = parseFloat(row['outside_rh']);
             })
             .on('end', () => {
                 resolve('done');
@@ -174,7 +185,7 @@ var params=function(req) {
     return result;
 }
 
-var server = http.createServer(function (req, res)
+var server = https.createServer(https_options, function (req, res)
 {
     if (req.url !== '/favicon.ico') {
         /* Clear data. */
@@ -192,11 +203,13 @@ var server = http.createServer(function (req, res)
 
         /* Config. */
         let in_parameters = params(req);
+        let selected_option = '';
 
         let filename = base_dir + tree[tree.length - 1];
         if (in_parameters.file)
         {
             filename = base_dir + in_parameters.file.replace(/-/gi, '/');
+            selected_option = in_parameters.file;
         }
 
         let last_minute_promise = read_last_minute_file(last_update_file);
@@ -223,7 +236,6 @@ var server = http.createServer(function (req, res)
 
                     /* Data sets */
                     data = data.replace(/{cpu_temp}/g, JSON.stringify(temp_list_cpu));
-                    data = data.replace(/{cabinet_temp}/g, JSON.stringify(temp_list_cabinet));
                     data = data.replace(/{inside_temp}/g, JSON.stringify(temp_list_inside));
                     data = data.replace(/{outside_temp}/g, JSON.stringify(temp_list_outside));
 
@@ -236,14 +248,14 @@ var server = http.createServer(function (req, res)
 
                     /* Last minute info. */
                     data = data.replace(/{last_cpu_t}/g, JSON.stringify(last_ping_cpu_t));
-                    data = data.replace(/{last_cabinet_t}/g, JSON.stringify(last_ping_cabinet_t));
                     data = data.replace(/{last_inside_t}/g, JSON.stringify(last_ping_inside_t));
                     data = data.replace(/{last_outside_t}/g, JSON.stringify(last_ping_outside_t));
                     data = data.replace(/{last_date}/g, last_ping_date);
                     data = data.replace(/{last_time}/g, last_ping_time);
 
                     /* Manage options. */
-                    let options = generate_file_options(filename.substr(base_dir.length));
+                    console.log('Selected option:', selected_option);
+                    let options = generate_file_options(selected_option);
                     data = data.replace(/{opt_prec}/g, options);
 
                     res.write(data);
@@ -261,7 +273,7 @@ var server = http.createServer(function (req, res)
         );
     }
 
-}).listen(5000);
+}).listen(443);
 
-let addr = server.address();
-console.log("Server listening on port %d, using %s", addr['port'], addr['family']);
+//let addr = server.address();
+//console.log("Server listening on port %d, using %s", addr['port'], addr['family']);
