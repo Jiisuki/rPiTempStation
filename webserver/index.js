@@ -49,11 +49,13 @@ let rh_list_outside = [];
 let dates = [];
 let ts = [];
 let n_data_points = 0;
+let n_total_points = 0;
 
 function clear_globals() {
     ts = [];
     dates = [];
     n_data_points = 0;
+    n_total_points = 0;
     temp_list_cpu = [];
     temp_list_inside = [];
     temp_list_outside = [];
@@ -88,6 +90,7 @@ async function read_file(file, interval_minute) {
         let inside_rh = 0.0;
         let outside_rh = 0.0;
         n_data_points = 0;
+        n_total_points = 0;
 
         /* Iteration memory. */
         let unixTimestamp = 0;
@@ -104,8 +107,9 @@ async function read_file(file, interval_minute) {
                 outside_t = parseFloat(row['outside_t']);
                 inside_rh = parseFloat(row['inside_rh']);
                 outside_rh = parseFloat(row['outside_rh']);
+                n_total_points++;
 
-                if ((interval_minute * 60) <= (unixTimestamp - unixTs0)) {
+                if ((interval_minute * 30) <= (unixTimestamp - unixTs0)) {
                     temp_list_cpu.push(cpu_t);
                     temp_list_inside.push(inside_t);
                     temp_list_outside.push(outside_t);
@@ -126,43 +130,8 @@ async function read_file(file, interval_minute) {
                 dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
                 ts.push(unixTimestamp);
                 n_data_points++;
+                n_total_points++;
 
-                resolve('done');
-            })
-            .on('error', () => {
-                reject('error');
-            });
-    });
-}
-
-let last_ping_date = "";
-let last_ping_time = "";
-let last_ping_cpu_t = 0;
-let last_ping_inside_t = 0;
-let last_ping_outside_t = 0;
-let last_ping_inside_rh = 0;
-let last_ping_outside_rh = 0;
-
-async function read_last_minute_file(file) {
-    return new Promise(function (resolve, reject) {
-        /* Set timeout for parsing the data. */
-        setTimeout(() => reject(new Error('Unable to parse.')), 1000);
-
-        /* Read the file async. */
-        fs.createReadStream(file)
-            .pipe(csv({headers: ['ts', 'cpu', 'inside_t', 'inside_rh', 'outside_t', 'outside_rh']}))
-            .on('data', (row) => {
-                //last_ping_date = "2021-01-01";
-                //last_ping_time = row['ts'];
-                last_ping_date = (moment(parseInt(row['ts']), 'X').utcOffset(tz).format('LLL'));
-
-                last_ping_cpu_t = parseFloat(row['cpu']);
-                last_ping_inside_t = parseFloat(row['inside_t']);
-                last_ping_outside_t = parseFloat(row['outside_t']);
-                last_ping_inside_rh = parseFloat(row['inside_rh']);
-                last_ping_outside_rh = parseFloat(row['outside_rh']);
-            })
-            .on('end', () => {
                 resolve('done');
             })
             .on('error', () => {
@@ -212,20 +181,6 @@ var server = https.createServer(https_options, function (req, res)
             selected_option = in_parameters.file;
         }
 
-        let last_minute_promise = read_last_minute_file(last_update_file);
-        last_minute_promise.then(
-            function (result) {
-                console.log('Updated last minute information.');
-            },
-            function (error) { /* handle an error */
-                console.log('Error processing file.');
-                fs.readFile('error.html', 'utf-8', function (err, data) {
-                    res.writeHead(200, {'Content-Type': 'text/html'});
-                    res.write(data);
-                    res.end();
-                });
-            });
-
         console.log('Loading file: ' + filename + '.csv');
         let promise = read_file(filename + '.csv', decimation_interval_min);
 
@@ -235,23 +190,18 @@ var server = https.createServer(https_options, function (req, res)
                     res.writeHead(200, {'Content-Type': 'text/html'});
 
                     /* Data sets */
-                    data = data.replace(/{cpu_temp}/g, JSON.stringify(temp_list_cpu));
                     data = data.replace(/{inside_temp}/g, JSON.stringify(temp_list_inside));
                     data = data.replace(/{outside_temp}/g, JSON.stringify(temp_list_outside));
+                    data = data.replace(/{inside_rh}/g, JSON.stringify(rh_list_inside));
+                    data = data.replace(/{outside_rh}/g, JSON.stringify(rh_list_outside));
 
                     /* Time series */
-                    //data = data.replace(/{xval}/g, JSON.stringify(ts));
                     data = data.replace(/{xval}/g, JSON.stringify(ts.map(e => e * 1000)));
 
                     /* Debug info. */
                     data = data.replace(/{n_data_points}/g, JSON.stringify(n_data_points));
-
-                    /* Last minute info. */
-                    data = data.replace(/{last_cpu_t}/g, JSON.stringify(last_ping_cpu_t));
-                    data = data.replace(/{last_inside_t}/g, JSON.stringify(last_ping_inside_t));
-                    data = data.replace(/{last_outside_t}/g, JSON.stringify(last_ping_outside_t));
-                    data = data.replace(/{last_date}/g, last_ping_date);
-                    data = data.replace(/{last_time}/g, last_ping_time);
+                    data = data.replace(/{n_total_points}/g, JSON.stringify(n_total_points));
+                    data = data.replace(/{last_cpu_t}/g, JSON.stringify(temp_list_cpu[temp_list_cpu.length - 1]));
 
                     /* Manage options. */
                     console.log('Selected option:', selected_option);

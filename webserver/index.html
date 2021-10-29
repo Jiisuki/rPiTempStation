@@ -11,7 +11,7 @@
 </head>
 <body style="display: flex; flex-direction: row; justify-content: center; min-height: 100vh; min-width: 960px;">
     <div style="width: 90%;">
-        <p style="font-family: Calibri, sans-serif; font-size: 11pt;">System Monitor</p>
+        <p style="font-family: Calibri, sans-serif; font-size: 11pt;">System Monitor - <i>CPU: <b>{last_cpu_t}</b> degrees.</i></p>
         <form action="#">
             <label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="file_select"></label>
             <select style="font-family: Calibri, sans-serif; font-size: 16pt; padding: 8px;" name="file" id="file_select" onchange="this.form.submit()">
@@ -19,18 +19,16 @@
             </select>
             <!--input style="font-family: Calibri, sans-serif; font-size: 12pt; padding: 8px;" type="submit" value="Update Now" /-->
         </form>
-        <canvas id="myChart"></canvas>
         <canvas id="myChart1"></canvas>
-        <!--canvas id="myChart2"></canvas-->
-        <!--canvas id="myChart3"></canvas-->
-        <p style="font-family: sans-serif; font-size: 9pt;">A total of {n_data_points} data points were used to build these charts.</p>
+        <canvas id="myChart2"></canvas>
+        <p style="font-family: sans-serif; font-size: 9pt;">Showing {n_data_points} of {n_total_points} data points.</p>
     </div>
     <script>
         const option_tension = 0.25;
         const option_interpolation = 'monotone';
         const option_fill = false;
         const option_type = 'line';
-        const option_aspect_ratio = 3;
+        const option_aspect_ratio = 4;
 
         const bg_cpu     = 'rgba(255, 205, 86, 0.2)';
         const bg_cabinet = 'rgba(255, 159, 64, 0.2)';
@@ -50,7 +48,7 @@
             backgroundColor: bg_inside,
             pointBorderColor: bg_inside,
             cubicInterpolationMode: option_interpolation,
-            tension: option_tension
+            tension: option_tension,
         }
 
         const dataset_outside = {
@@ -61,91 +59,85 @@
             backgroundColor: bg_outside,
             pointBorderColor: bg_outside,
             cubicInterpolationMode: option_interpolation,
-            tension: option_tension
+            tension: option_tension,
+            hidden: true
         }
 
-        const dataset_cpu = {
-            label: "CPU",
-            data: {cpu_temp},
+        const dataset_inside_rh = {
+            label: "Inside",
+            data: {inside_rh},
             fill: option_fill,
-            borderColor: border_cpu,
-            backgroundColor: bg_cpu,
-            pointBorderColor: bg_cpu,
+            borderColor: border_inside,
+            backgroundColor: bg_inside,
+            pointBorderColor: bg_inside,
             cubicInterpolationMode: option_interpolation,
-            tension: option_tension
+            tension: option_tension,
         }
 
-        const dataset_last_minute = {
-            label: "Last minute",
-            data: [{last_cpu_t}, {last_inside_t}, {last_outside_t}],
+        const dataset_outside_rh = {
+            label: "Outside",
+            data: {outside_rh},
             fill: option_fill,
-            backgroundColor: [bg_cpu, bg_cabinet, bg_inside, bg_outside],
-            borderColor: [border_cpu, border_cabinet, border_inside, border_outside],
-            borderWidth: 2
+            borderColor: border_outside,
+            backgroundColor: bg_outside,
+            pointBorderColor: bg_outside,
+            cubicInterpolationMode: option_interpolation,
+            tension: option_tension,
+            hidden: true
         }
 
-        const option_scales = {
-            x: {
-                title: {
-                    display: true,
-                    text: 'Time of Day'
-                },
-                type: 'time',//series'
-                distribution: 'series',
-                time: {
-                    displayFormats: {
-                        hour: 'HH:mm',
-                        minute: 'HH:mm'
-                    },
-                    minUnit: 'hour',
-                    isoWeekday: true,
-                    stepSize: 0.5
-                }
+        const option_scales_time = {
+            title: {
+                display: true,
+                text: 'Time of Day'
             },
+            type: 'time',//series'
+            distribution: 'series',
+            time: {
+                displayFormats: {
+                    hour: 'HH:mm',
+                    minute: 'HH:mm'
+                },
+                minUnit: 'hour',
+                isoWeekday: true,
+                stepSize: 0.5
+            }
+        }
+
+        const option_scales_temp = {
+            x: option_scales_time,
             y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
                 title: {
                     display: true,
                     text: 'Temperature'
                 },
+                suggestedMin: -10,
+                suggestedMax: 40,
             }
         }
 
-        const ctx = document.getElementById("myChart").getContext("2d");
-        const myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {labels: ['CPU', 'Inside', 'Outside'], datasets: [dataset_last_minute]},
-            options: {
-                animation: true,
-                responsive: true,
-                    /*
-                tooltipTemplate: '<%= value %>',
-                tooltipFillColor: 'rgba(0,0,0,0)',
-                tooltipFontColor: 'rgb(0,0,0)',
-                tooltipEvents: [],
-                tooltipCaretSize: 0,
-                onAnimationComplete: function() {
-                    this.showTooltip(this.datasets[0].bars, true);
+        const option_scales_rh = {
+            x: option_scales_time,
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: '%'
                 },
-                    */
-                aspectRatio: 9,
-                plugins: {
-                    legend: {
-                        display: false,
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Last updated {last_date} {last_time}'
-                    },
-                },
-                //scales: option_scales
-            },
-        });
+                suggestedMin: 0,
+                suggestedMax: 100,
+            }
+        }
 
         const ctx1 = document.getElementById("myChart1").getContext("2d");
         const myChart1 = new Chart(ctx1, {
             type: option_type,
-            data: {labels: {xval}, datasets: [dataset_inside, dataset_outside, dataset_cpu]},
+            data: {labels: {xval}, datasets: [dataset_inside, dataset_outside]},
             options: {
                 animation: true,
                 interaction: {
@@ -165,56 +157,43 @@
                     },
                     title: {
                         display: true,
-                        text: 'Room temperature'
+                        text: 'Temperature'
                     },
                 },
-                scales: option_scales
+                scales: option_scales_temp
             },
         });
 
-        /*
         const ctx2 = document.getElementById("myChart2").getContext("2d");
         const myChart2 = new Chart(ctx2, {
             type: option_type,
-            data: {labels: {xval}, datasets: [dataset_equipment]},
+            data: {labels: {xval}, datasets: [dataset_inside_rh, dataset_outside_rh]},
             options: {
+                animation: true,
+                interaction: {
+                    intersect: false
+                },
                 responsive: true,
                 aspectRatio: option_aspect_ratio,
+                locale: 'en-GB',
+                elements: {
+                    point: {
+                        radius: 0
+                    }
+                },
                 plugins: {
                     legend: {
-                        display: false,
                         position: 'top',
                     },
                     title: {
                         display: true,
-                        text: 'Equipment Temperature'
+                        text: 'Relative Humidity'
                     },
                 },
-                scales: option_scales
+                scales: option_scales_rh
             },
         });
 
-        const ctx3 = document.getElementById("myChart3").getContext("2d");
-        const myChart3 = new Chart(ctx3, {
-            type: option_type,
-            data: {labels: {xval}, datasets: [dataset_cpu]},
-            options: {
-                responsive: true,
-                aspectRatio: option_aspect_ratio,
-                plugins: {
-                    legend: {
-                        display: false,
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'CPU Temperature'
-                    },
-                },
-                scales: option_scales
-            },
-        });
-         */
     </script>
 </body>
 </html>
