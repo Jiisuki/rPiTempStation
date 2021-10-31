@@ -30,6 +30,17 @@ namespace sht31d
         ~data() = default;
     };
 
+    struct status
+    {
+        bool alert_pending;
+        bool heater_enabled;
+        bool rh_tracking_alert;
+        bool t_tracking_alert;
+        bool system_reset_detected;
+        bool command_was_successful;
+        bool checksum_was_correct;
+    };
+
     class reader
     {
     public:
@@ -43,5 +54,10 @@ namespace sht31d
         bool is_open;
         void transmit(const std::uint8_t* buffer, std::size_t size) const;
         void receive(std::uint8_t* buffer, std::size_t size) const;
+        void soft_reset() const;
+        void disable_heater() const;
+        void enable_heater() const;
+        status get_status() const;
+        void clear_status() const;
     };
 }

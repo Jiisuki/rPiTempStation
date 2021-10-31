@@ -3,11 +3,11 @@ const glob = require('glob');
 const csv = require('csv-parser');
 const fs = require('fs');
 const moment = require('moment');
+const {value} = require("lodash/seq");
 
 //moment.locale('sv-SE');
 moment.locale('en-GB');
 const tz = '+0200';
-const decimation_interval_min = 30;
 
 function get_tree (dir) {
     let tree = glob.sync(dir + '**/**/*.csv');
@@ -78,10 +78,18 @@ function generate_file_options(selected) {
     return options;
 }
 
+function generate_start_stop_dates() {
+    let dates = [];
+    let v0 = tree[0].replace(/\//g, '-');
+    let v1 = tree[tree.length-1].replace(/\//g, '-');
+    dates = [v0, v1];
+    return dates;
+}
+
 async function read_file(file, interval_minute) {
     return new Promise(function (resolve, reject) {
         /* Set timeout for parsing the data. */
-        setTimeout(() => reject(new Error('Unable to parse.')), 1000);
+        setTimeout(() => reject(new Error('Unable to parse.')), 5000);
 
         /* Setup accumulators. */
         let cpu_t = 0.0;
@@ -98,6 +106,9 @@ async function read_file(file, interval_minute) {
 
         /* Read the file async. */
         fs.createReadStream(file)
+            .on('error', () => {
+                reject('error');
+            })
             .pipe(csv({headers: ['ts', 'cpu', 'inside_t', 'inside_rh', 'outside_t', 'outside_rh']}))
             .on('data', (row) => {
                 unixTimestamp = parseInt(row['ts']);
@@ -109,7 +120,7 @@ async function read_file(file, interval_minute) {
                 outside_rh = parseFloat(row['outside_rh']);
                 n_total_points++;
 
-                if ((interval_minute * 30) <= (unixTimestamp - unixTs0)) {
+                if ((interval_minute * 60) <= (unixTimestamp - unixTs0)) {
                     temp_list_cpu.push(cpu_t);
                     temp_list_inside.push(inside_t);
                     temp_list_outside.push(outside_t);
@@ -122,15 +133,17 @@ async function read_file(file, interval_minute) {
                 }
             })
             .on('end', () => {
-                temp_list_cpu.push(cpu_t);
-                temp_list_inside.push(inside_t);
-                temp_list_outside.push(outside_t);
-                rh_list_inside.push(inside_rh);
-                rh_list_outside.push(outside_rh);
-                dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
-                ts.push(unixTimestamp);
-                n_data_points++;
-                n_total_points++;
+                if (unixTs0 !== unixTimestamp) {
+                    temp_list_cpu.push(cpu_t);
+                    temp_list_inside.push(inside_t);
+                    temp_list_outside.push(outside_t);
+                    rh_list_inside.push(inside_rh);
+                    rh_list_outside.push(outside_rh);
+                    dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
+                    ts.push(unixTimestamp);
+                    n_data_points++;
+                    n_total_points++;
+                }
 
                 resolve('done');
             })
@@ -154,6 +167,15 @@ var params=function(req) {
     return result;
 }
 
+function validate_date(d) {
+    tree.forEach(function (value, index) {
+        let v = value.replace(/\//g, '-');
+        if (d === v)
+            return true;
+    });
+    return false;
+}
+
 var server = https.createServer(https_options, function (req, res)
 {
     if (req.url !== '/favicon.ico') {
@@ -172,17 +194,31 @@ var server = https.createServer(https_options, function (req, res)
 
         /* Config. */
         let in_parameters = params(req);
-        let selected_option = '';
 
-        let filename = base_dir + tree[tree.length - 1];
-        if (in_parameters.file)
-        {
-            filename = base_dir + in_parameters.file.replace(/-/gi, '/');
-            selected_option = in_parameters.file;
+        let start_stop_dates = generate_start_stop_dates();
+        let date_min = start_stop_dates[0];
+        let date_max = start_stop_dates[1];
+        let start_date = start_stop_dates[0];
+        let stop_date = start_stop_dates[1];
+        if (in_parameters.date_start) {
+            if (validate_date(in_parameters.date_start)) {
+                start_date = in_parameters.date_start;
+            }
+            if (validate_date(in_parameters.date_start)) {
+                stop_date = in_parameters.date_start;
+            }
         }
+        /*
+        if (in_parameters.date_end)
+        {
+            stop_date = in_parameters.date_end;
+        }
+        */
+
+        let filename = base_dir + stop_date.replace(/-/gi, '/');
 
         console.log('Loading file: ' + filename + '.csv');
-        let promise = read_file(filename + '.csv', decimation_interval_min);
+        let promise = read_file(filename + '.csv', 5);
 
         promise.then(
             function (result) { /* handle a successful result */
@@ -201,12 +237,12 @@ var server = https.createServer(https_options, function (req, res)
                     /* Debug info. */
                     data = data.replace(/{n_data_points}/g, JSON.stringify(n_data_points));
                     data = data.replace(/{n_total_points}/g, JSON.stringify(n_total_points));
-                    data = data.replace(/{last_cpu_t}/g, JSON.stringify(temp_list_cpu[temp_list_cpu.length - 1]));
 
-                    /* Manage options. */
-                    console.log('Selected option:', selected_option);
-                    let options = generate_file_options(selected_option);
-                    data = data.replace(/{opt_prec}/g, options);
+                    /* Selection of date. */
+                    data = data.replace(/{date_start}/g, start_date);
+                    data = data.replace(/{date_end}/g, stop_date);
+                    data = data.replace(/{date_min}/g, date_min);
+                    data = data.replace(/{date_max}/g, date_max);
 
                     res.write(data);
                     res.end();

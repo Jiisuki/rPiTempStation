@@ -18,15 +18,14 @@ static common::abortable_delay* loop_delay;
 
 int main()
 {
-    loop_delay = new common::abortable_delay (1000);
+    loop_delay = new common::abortable_delay (60000);
 
     signal(SIGINT, signal_handler);
 
     /* Creating sub-modules. */
     cpu_temp::reader module_cpu_temp {};
     sht31d::reader module_inside (0x44);
-    // todo:
-    //sht31d::reader module_outside (0x45);
+    sht31d::reader module_outside (0x45);
 
     /* Creating publisher. */
     ipc::context_t ctx {};
@@ -37,8 +36,7 @@ int main()
     {
         auto temp_cpu = module_cpu_temp.read();
         auto inside_data = module_inside.get();
-        // todo:
-        //auto outside_data = module_outside.get();
+        auto outside_data = module_outside.get();
 
         std::stringstream ss {};
 
@@ -54,14 +52,12 @@ int main()
         ss << std::to_string(temp_cpu) << ",";
         ss << std::to_string(inside_data.temperature) << ",";
         ss << std::to_string(inside_data.relative_humidity) << ",";
-        // dummies:
-        ss << std::to_string(0) << ",";
-        ss << std::to_string(0);
-        // todo:
-        //ss << std::to_string(outside_data.temperature) << ",";
-        //ss << std::to_string(outside_data.relative_humidity);
+        ss << std::to_string(outside_data.temperature) << ",";
+        ss << std::to_string(outside_data.relative_humidity);
 
         publisher.publish(ss.str());
+
+        std::cout << ss.str() << std::endl;
     }
     while (loop_delay->wait());
 

@@ -11,13 +11,12 @@
 </head>
 <body style="display: flex; flex-direction: row; justify-content: center; min-height: 100vh; min-width: 960px;">
     <div style="width: 90%;">
-        <p style="font-family: Calibri, sans-serif; font-size: 11pt;">System Monitor - <i>CPU: <b>{last_cpu_t}</b> degrees.</i></p>
+        <p style="font-family: Calibri, sans-serif; font-size: 11pt; margin-top: 16px">System Monitor</p><!-- - <i>CPU: <b>{last_cpu_t}</b> degrees.</i></p-->
         <form action="#">
-            <label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="file_select"></label>
-            <select style="font-family: Calibri, sans-serif; font-size: 16pt; padding: 8px;" name="file" id="file_select" onchange="this.form.submit()">
-                {opt_prec}
-            </select>
-            <!--input style="font-family: Calibri, sans-serif; font-size: 12pt; padding: 8px;" type="submit" value="Update Now" /-->
+            <label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="date_start">Start:</label>
+            <input type="date" id="date_start" name="date_start" value="{date_start}" min="{date_min}" max="{date_max}" onchange="this.form.submit()"/>
+            <!--label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="date_end">End:</label>
+            <input type="date" id="date_end" name="date_end" value="{date_end}" min="{date_min}" max="{date_max}"/-->
         </form>
         <canvas id="myChart1"></canvas>
         <canvas id="myChart2"></canvas>
@@ -30,13 +29,9 @@
         const option_type = 'line';
         const option_aspect_ratio = 4;
 
-        const bg_cpu     = 'rgba(255, 205, 86, 0.2)';
-        const bg_cabinet = 'rgba(255, 159, 64, 0.2)';
         const bg_inside  = 'rgba(75, 192, 192, 0.2)';
         const bg_outside = 'rgba(255, 99, 132, 0.2)';
 
-        const border_cpu     = 'rgb(255, 205, 86)';
-        const border_cabinet = 'rgb(255, 159, 64)';
         const border_inside  = 'rgb(75, 192, 192)';
         const border_outside = 'rgb(255, 99, 132)';
 
@@ -60,7 +55,6 @@
             pointBorderColor: bg_outside,
             cubicInterpolationMode: option_interpolation,
             tension: option_tension,
-            hidden: true
         }
 
         const dataset_inside_rh = {
@@ -83,12 +77,11 @@
             pointBorderColor: bg_outside,
             cubicInterpolationMode: option_interpolation,
             tension: option_tension,
-            hidden: true
         }
 
         const option_scales_time = {
             title: {
-                display: true,
+                display: false,
                 text: 'Time of Day'
             },
             type: 'time',//series'
@@ -114,8 +107,8 @@
                     display: true,
                     text: 'Temperature'
                 },
-                suggestedMin: -10,
-                suggestedMax: 40,
+                suggestedMin: 0,
+                suggestedMax: 30,
             }
         }
 
@@ -141,6 +134,7 @@
             options: {
                 animation: true,
                 interaction: {
+                    mode: 'nearest',
                     intersect: false
                 },
                 responsive: true,
@@ -153,11 +147,16 @@
                 },
                 plugins: {
                     legend: {
-                        position: 'top',
+                        position: 'left',
                     },
                     title: {
                         display: true,
-                        text: 'Temperature'
+                        text: 'Temperature',
+                        align: 'end'
+                    },
+                    decimation: {
+                        enabled: true,
+                        algorithm: 'min-max'
                     },
                 },
                 scales: option_scales_temp
@@ -171,6 +170,7 @@
             options: {
                 animation: true,
                 interaction: {
+                    mode: 'nearest',
                     intersect: false
                 },
                 responsive: true,
@@ -183,12 +183,17 @@
                 },
                 plugins: {
                     legend: {
-                        position: 'top',
+                        position: 'left',
                     },
                     title: {
                         display: true,
-                        text: 'Relative Humidity'
+                        text: 'Relative Humidity',
+                        align: 'end'
                     },
+                    decimation: {
+                        enabled: true,
+                        algorithm: 'min-max'
+                    }
                 },
                 scales: option_scales_rh
             },

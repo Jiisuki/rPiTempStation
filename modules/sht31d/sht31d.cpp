@@ -29,6 +29,15 @@ namespace sht31d
             throw exception("Failed to acquire bus access and/or talk to slave.");
         }
 
+        soft_reset();
+        clear_status();
+        disable_heater();
+        auto s = get_status();
+        if (s.heater_enabled)
+        {
+            throw exception("Failed to disable the heater.");
+        }
+
         is_open = true;
     }
 
@@ -43,7 +52,6 @@ namespace sht31d
     data reader::get() const
     {
         float v = 0;
-        /* todo */
         std::uint8_t command[] = {0x24, 0x00};
         transmit(command, sizeof(command));
 
@@ -52,8 +60,8 @@ namespace sht31d
         std::uint8_t data_and_crc[6] {};
         receive(data_and_crc, sizeof(data_and_crc));
 
-        auto s_t = (std::int16_t) (((std::uint16_t) data_and_crc[0] << 8) | data_and_crc[1]);
-        auto s_rh = (std::int16_t) (((std::uint16_t) data_and_crc[3] << 8) | data_and_crc[4]);
+        auto s_t =  ((std::uint16_t) data_and_crc[0] << 8) | ((std::uint16_t) data_and_crc[1]);
+        auto s_rh = ((std::uint16_t) data_and_crc[3] << 8) | ((std::uint16_t) data_and_crc[4]);
 
         float rh = 100.0f * ((float) s_rh / 65535);
         float t = -45.0f + 175.0f * ((float) s_t / 65535);
@@ -76,9 +84,54 @@ namespace sht31d
             //ERROR HANDLING: i2c transaction failed
             throw exception ("Failed to read from the i2c bus.");
         }
-        else
-        {
-            printf("Data read: %s\n", buffer);
-        }
+    }
+
+    void reader::soft_reset() const
+    {
+        const std::uint8_t command[] = {0x30, 0xa2};
+        transmit(command, sizeof(command));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    void reader::disable_heater() const
+    {
+        const std::uint8_t command[] = {0x30, 0x66};
+        transmit(command, sizeof(command));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    void reader::enable_heater() const
+    {
+        const std::uint8_t command[] = {0x30, 0x6d};
+        transmit(command, sizeof(command));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    status reader::get_status() const
+    {
+        const std::uint8_t command[] = {0xf3, 0x2d};
+        transmit(command, sizeof(command));
+
+        std::uint8_t response[3] {};
+        receive(response, sizeof(response));
+
+        const status s = {
+                .alert_pending = (0 < (0x80 & response[0])),
+                .heater_enabled = (0 < (0x20 & response[0])),
+                .rh_tracking_alert = (0 < (0x08 & response[0])),
+                .t_tracking_alert = (0 < (0x04 & response[0])),
+                .system_reset_detected = (0 < (0x10 & response[1])),
+                .command_was_successful = (0 == (0x02 & response[1])),
+                .checksum_was_correct = (0 == (0x01 & response[1])),
+        };
+
+        return (s);
+    }
+
+    void reader::clear_status() const
+    {
+        const std::uint8_t command[] = {0x30, 0x41};
+        transmit(command, sizeof(command));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
