@@ -1,3 +1,5 @@
 node_modules/
 temp_log/
 /package-lock.json
+/cert.pem
+/key.pem

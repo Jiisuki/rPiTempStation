@@ -14,7 +14,7 @@
         <p style="font-family: Calibri, sans-serif; font-size: 11pt; margin-top: 16px">System Monitor</p><!-- - <i>CPU: <b>{last_cpu_t}</b> degrees.</i></p-->
         <form action="#">
             <label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="date_start">Start:</label>
-            <input type="date" id="date_start" name="date_start" value="{date_start}" min="{date_min}" max="{date_max}" onchange="this.form.submit()"/>
+            <input type="month" id="date_start" name="date_start" value="{date_start}" min="{date_min}" max="{date_max}" onchange="this.form.submit()"/>
             <!--label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="date_end">End:</label>
             <input type="date" id="date_end" name="date_end" value="{date_end}" min="{date_min}" max="{date_max}"/-->
         </form>
@@ -88,12 +88,13 @@
             distribution: 'series',
             time: {
                 displayFormats: {
-                    hour: 'HH:mm',
+                    day: 'D MMM',
+                    hour: 'D MMM HH:mm',
                     minute: 'HH:mm'
                 },
-                minUnit: 'hour',
+                minUnit: 'minute',
                 isoWeekday: true,
-                stepSize: 0.5
+                stepSize: 3
             }
         }
 
@@ -107,8 +108,8 @@
                     display: true,
                     text: 'Temperature'
                 },
-                suggestedMin: 0,
-                suggestedMax: 30,
+                suggestedMin: -5,
+                suggestedMax: 20,
             }
         }
 
@@ -157,7 +158,7 @@
                     decimation: {
                         enabled: true,
                         algorithm: 'min-max'
-                    },
+                    }
                 },
                 scales: option_scales_temp
             },

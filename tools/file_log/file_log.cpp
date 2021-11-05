@@ -31,33 +31,74 @@ int main ()
     auto last_update_filename = "/home/pi/temp_log/last_minute.csv";
 
     loop_delay = new common::abortable_delay (100);
+    const auto write_interval_min = 15;
 
     ipc::context_t ctx {};
     ipc::subscriber subscriber (ctx, "temp");
 
+    common::average<float, 60> inside_avg_t {};
+    common::average<float, 60> inside_avg_rh {};
+    common::average<float, 60> outside_avg_t {};
+    common::average<float, 60> outside_avg_rh {};
+
+    auto previous_minute = -1;
+
     do
     {
-        const auto f = get_filename_from_date("/home/pi/temp_log/minute_logs/", ".csv");
-        if (!is_log_file_equal(f, current_filename))
-        {
-            std::cout << "Switching log file to: " << f.first << f.second << std::endl;
-            current_filename = f;
-            touch_file(current_filename);
-        }
-
-        std::string topic {};
-        std::string msg {};
         try
         {
-            if (subscriber.poll(topic, msg))
+            common::temp_data data {};
+            if (subscriber.poll(&data, sizeof(common::temp_data)))
             {
-                add_data_point(current_filename.first + current_filename.second, msg);
+                /* Allocate average of last minute or so. */
+                inside_avg_t.add(data.inside_t);
+                inside_avg_rh.add(data.inside_rh);
+                outside_avg_t.add(data.outside_t);
+                outside_avg_rh.add(data.outside_rh);
 
-                static unsigned int c = 0;
-                c = (c + 1) % 5;
-                if (0 == c)
+                /* Get current time reference. */
+                auto now = std::time(nullptr);
+                auto t = std::localtime(&now);
+                if ((previous_minute != t->tm_min) && (0 == (t->tm_min % write_interval_min)))
                 {
-                    write_last_minute_data_point(last_update_filename, msg);
+                    previous_minute = t->tm_min;
+
+                    const auto f = get_filename_from_date("/home/pi/temp_log/minute_logs/", ".csv");
+                    if (!is_log_file_equal(f, current_filename))
+                    {
+                        std::cout << "Switching log file to: " << f.first << f.second << std::endl;
+                        current_filename = f;
+                        touch_file(current_filename);
+                    }
+
+                    /* Write CSV using that average of the last minute. */
+                    std::stringstream ss{};
+                    ss << std::to_string(data.unix_ts) << ",";
+                    ss << std::to_string(data.cpu_t) << ",";
+                    ss << std::to_string(inside_avg_t.mean()) << ",";
+                    ss << std::to_string(inside_avg_rh.mean()) << ",";
+                    ss << std::to_string(outside_avg_t.mean()) << ",";
+                    ss << std::to_string(outside_avg_rh.mean());
+
+                    add_data_point(current_filename.first + current_filename.second, ss.str());
+                }
+
+                /* If a minute has passed, write last minute info. */
+                static auto last_minute = 0;
+                if (last_minute != t->tm_min)
+                {
+                    last_minute = t->tm_min;
+
+                    std::stringstream ss{};
+
+                    ss << std::to_string(data.unix_ts) << ",";
+                    ss << std::to_string(data.cpu_t) << ",";
+                    ss << std::to_string(inside_avg_t.mean()) << ",";
+                    ss << std::to_string(inside_avg_rh.mean()) << ",";
+                    ss << std::to_string(outside_avg_t.mean()) << ",";
+                    ss << std::to_string(outside_avg_rh.mean());
+
+                    write_last_minute_data_point(last_update_filename, ss.str());
                 }
             }
         }
@@ -109,8 +150,8 @@ log_file_t get_filename_from_date(const std::string& base, const std::string& fm
     /* Generate path */
     std::stringstream ss_path {};
     std::stringstream ss_file {};
-    ss_path << base << std::put_time(std::localtime(&time), "%Y/%m/");
-    ss_file << std::put_time(std::localtime(&time), "%d") << fmt;
+    ss_path << base << std::put_time(std::localtime(&time), "%Y/");
+    ss_file << std::put_time(std::localtime(&time), "%m") << fmt;
     log_file_t lf (ss_path.str(), ss_file.str());
     return (std::move(lf));
 }

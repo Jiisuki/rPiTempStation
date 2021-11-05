@@ -120,7 +120,7 @@ async function read_file(file, interval_minute) {
                 outside_rh = parseFloat(row['outside_rh']);
                 n_total_points++;
 
-                if ((interval_minute * 60) <= (unixTimestamp - unixTs0)) {
+                //if ((interval_minute * 60) <= (unixTimestamp - unixTs0)) {
                     temp_list_cpu.push(cpu_t);
                     temp_list_inside.push(inside_t);
                     temp_list_outside.push(outside_t);
@@ -130,7 +130,7 @@ async function read_file(file, interval_minute) {
                     ts.push(unixTimestamp);
                     n_data_points++;
                     unixTs0 = unixTimestamp;
-                }
+                //}
             })
             .on('end', () => {
                 if (unixTs0 !== unixTimestamp) {
@@ -168,12 +168,14 @@ var params=function(req) {
 }
 
 function validate_date(d) {
-    tree.forEach(function (value, index) {
-        let v = value.replace(/\//g, '-');
-        if (d === v)
-            return true;
-    });
-    return false;
+    return true;
+    //tree.forEach(function (value, index) {
+        //let v = value.replace(/\//g, '-');
+        //if (JSON.stringify(d) === JSON.stringify(v))
+            //return true;
+    //});
+    //console.log('Date', d, 'did not validate.');
+    //return false;
 }
 
 var server = https.createServer(https_options, function (req, res)

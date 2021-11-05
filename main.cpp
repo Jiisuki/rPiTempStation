@@ -12,13 +12,11 @@
 
 static void signal_handler(int v);
 
-float to_be_remoded_random_float(float min, float max);
-
 static common::abortable_delay* loop_delay;
 
 int main()
 {
-    loop_delay = new common::abortable_delay (60000);
+    loop_delay = new common::abortable_delay (100);
 
     signal(SIGINT, signal_handler);
 
@@ -31,33 +29,30 @@ int main()
     ipc::context_t ctx {};
     ipc::publisher publisher (ctx, "temp");
 
+    auto prev_ts = (unsigned int) std::time(nullptr);
+
     /* Wait for kill signal. */
     do
     {
-        auto temp_cpu = module_cpu_temp.read();
-        auto inside_data = module_inside.get();
-        auto outside_data = module_outside.get();
+        /* Only publish every new second. */
+        auto unix_ts = (unsigned int) std::time(nullptr);
+        if (unix_ts != prev_ts)
+        {
+            prev_ts = unix_ts;
+            auto temp_cpu = module_cpu_temp.read();
+            auto inside_data = module_inside.get();
+            auto outside_data = module_outside.get();
 
-        std::stringstream ss {};
+            common::temp_data data {};
+            data.unix_ts = unix_ts;
+            data.cpu_t = temp_cpu;
+            data.inside_t = inside_data.temperature;
+            data.inside_rh = inside_data.relative_humidity;
+            data.outside_t = outside_data.temperature;
+            data.outside_rh = outside_data.relative_humidity;
 
-        /* Format:
-         *   unix_ts, cpu, inside_t, inside_rh, outside_t, outside_rh
-         */
-
-        auto time = std::time(nullptr);
-
-        /* Generate path */
-        //ss << std::put_time(std::localtime(&time), "%Y,%m,%d,%H,%M,%S") << ",";
-        ss << std::to_string((unsigned int) time) << ",";
-        ss << std::to_string(temp_cpu) << ",";
-        ss << std::to_string(inside_data.temperature) << ",";
-        ss << std::to_string(inside_data.relative_humidity) << ",";
-        ss << std::to_string(outside_data.temperature) << ",";
-        ss << std::to_string(outside_data.relative_humidity);
-
-        publisher.publish(ss.str());
-
-        std::cout << ss.str() << std::endl;
+            publisher.publish(&data, sizeof(common::temp_data));
+        }
     }
     while (loop_delay->wait());
 
@@ -73,17 +68,4 @@ static void signal_handler(int v)
     {
         loop_delay->abort();
     }
-}
-
-float to_be_remoded_random_float(float min, float max)
-{
-    // this  function assumes max > min, you may want
-    // more robust error checking for a non-debug build
-    assert(max > min);
-    float random = ((float) rand()) / (float) RAND_MAX;
-
-    // generate (in your case) a float between 0 and (4.5-.78)
-    // then add .78, giving you a float between .78 and 4.5
-    float range = max - min;
-    return (random*range) + min;
 }
