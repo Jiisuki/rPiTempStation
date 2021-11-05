@@ -178,6 +178,38 @@ function validate_date(d) {
     //return false;
 }
 
+function colorize_rh_values (v) {
+    let color_list = [];
+    v.forEach(function (value, index) {
+        if (value < 25) {
+            color_list.push('rgb(0,0,255)');
+        }
+        else if (55 < value) {
+            color_list.push('rgb(255,0,0)');
+        }
+        else {
+            color_list.push('rgb(0,255,0)');
+        }
+    });
+    return color_list;
+}
+
+function colorize_t_values (v) {
+    let color_list = [];
+    v.forEach(function (value, index) {
+        if (value < 15) {
+            color_list.push('rgb(0,0,255)');
+        }
+        else if (25 < value) {
+            color_list.push('rgb(255,0,0)');
+        }
+        else {
+            color_list.push('rgb(0,255,0)');
+        }
+    });
+    return color_list;
+}
+
 var server = https.createServer(https_options, function (req, res)
 {
     if (req.url !== '/favicon.ico') {
@@ -232,6 +264,16 @@ var server = https.createServer(https_options, function (req, res)
                     data = data.replace(/{outside_temp}/g, JSON.stringify(temp_list_outside));
                     data = data.replace(/{inside_rh}/g, JSON.stringify(rh_list_inside));
                     data = data.replace(/{outside_rh}/g, JSON.stringify(rh_list_outside));
+
+                    /* Create colors based on values. */
+                    //let inside_t_clr = colorize_t_values(temp_list_inside);
+                    //let outside_t_clr = colorize_t_values(temp_list_outside);
+                    //let inside_rh_clr = colorize_rh_values(rh_list_inside);
+                    //let outside_rh_clr = colorize_rh_values(rh_list_outside);
+                    //data = data.replace(/{color_inside_t}/g, JSON.stringify(inside_t_clr));
+                    //data = data.replace(/{color_outside_t}/g, JSON.stringify(outside_t_clr));
+                    //data = data.replace(/{color_inside_rh}/g, JSON.stringify(inside_rh_clr));
+                    //data = data.replace(/{color_outside_rh}/g, JSON.stringify(outside_rh_clr));
 
                     /* Time series */
                     data = data.replace(/{xval}/g, JSON.stringify(ts.map(e => e * 1000)));

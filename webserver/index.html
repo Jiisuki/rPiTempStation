@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="height: 100%; font-family: 'Calibri', sans-serif; font-size: 9pt; color: rgb(80,102,120)">
 <head>
     <meta charset="UTF-8">
     <title>Temperature Log</title>
@@ -9,31 +9,38 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1"></script>
     <!--script src="node_modules/chart.js/dist/chart.js"></script-->
 </head>
-<body style="display: flex; flex-direction: row; justify-content: center; min-height: 100vh; min-width: 960px;">
+<body style="display: flex; flex-direction: row; justify-content: center; min-height: 100vh; min-width: 960px; background-color: rgb(32,43,51);">
     <div style="width: 90%;">
-        <p style="font-family: Calibri, sans-serif; font-size: 11pt; margin-top: 16px">System Monitor</p><!-- - <i>CPU: <b>{last_cpu_t}</b> degrees.</i></p-->
+        <p style="margin-top: 16px">System Monitor</p><!-- - <i>CPU: <b>{last_cpu_t}</b> degrees.</i></p-->
         <form action="#">
-            <label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="date_start">Start:</label>
+            <label for="date_start">Start:</label>
             <input type="month" id="date_start" name="date_start" value="{date_start}" min="{date_min}" max="{date_max}" onchange="this.form.submit()"/>
             <!--label style="font-family: Calibri, sans-serif; font-size: 12pt;" for="date_end">End:</label>
             <input type="date" id="date_end" name="date_end" value="{date_end}" min="{date_min}" max="{date_max}"/-->
         </form>
         <canvas id="myChart1"></canvas>
         <canvas id="myChart2"></canvas>
-        <p style="font-family: sans-serif; font-size: 9pt;">Showing {n_data_points} of {n_total_points} data points.</p>
+        <p>Showing {n_data_points} of {n_total_points} data points.</p>
     </div>
     <script>
+        const ctx1 = document.getElementById("myChart1").getContext("2d");
+        const ctx2 = document.getElementById("myChart2").getContext("2d");
+
         const option_tension = 0.25;
         const option_interpolation = 'monotone';
         const option_fill = false;
         const option_type = 'line';
         const option_aspect_ratio = 4;
 
-        const bg_inside  = 'rgba(75, 192, 192, 0.2)';
-        const bg_outside = 'rgba(255, 99, 132, 0.2)';
+        //const bg_inside  = 'rgba(75, 192, 192, 0.2)';
+        //const bg_outside = 'rgba(255, 99, 132, 0.2)';
 
         const border_inside  = 'rgb(75, 192, 192)';
         const border_outside = 'rgb(255, 99, 132)';
+        const bg_inside  = border_inside;
+        const bg_outside = border_outside;
+
+        let x_values = {xval};
 
         const dataset_inside = {
             label: "Inside",
@@ -79,10 +86,25 @@
             tension: option_tension,
         }
 
+        const colors = {
+            indigo: {
+                default: "rgba(80, 102, 120, 1)",
+                quarter: "rgba(80, 102, 120, 0.25)"
+            }
+        };
+
+        const option_grid = {
+            color: colors.indigo.quarter
+        };
+
+        const option_ticks = {
+            color: colors.indigo.default
+        };
+
         const option_scales_time = {
             title: {
                 display: false,
-                text: 'Time of Day'
+                text: 'Time of Day',
             },
             type: 'time',//series'
             distribution: 'series',
@@ -95,8 +117,10 @@
                 minUnit: 'minute',
                 isoWeekday: true,
                 stepSize: 3
-            }
-        }
+            },
+            grid: option_grid,
+            ticks: option_ticks,
+        };
 
         const option_scales_temp = {
             x: option_scales_time,
@@ -106,10 +130,16 @@
                 position: 'left',
                 title: {
                     display: true,
-                    text: 'Temperature'
+                    text: 'Degrees',
+                    color: colors.indigo.default,
+                    font: {
+                        size: 16
+                    }
                 },
                 suggestedMin: -5,
                 suggestedMax: 20,
+                grid: option_grid,
+                ticks: option_ticks,
             }
         }
 
@@ -121,21 +151,28 @@
                 position: 'left',
                 title: {
                     display: true,
-                    text: '%'
+                    text: '%',
+                    color: colors.indigo.default,
+                    font: {
+                        size: 16
+                    }
                 },
                 suggestedMin: 0,
                 suggestedMax: 100,
+                grid: option_grid,
+                ticks: option_ticks,
             }
         }
 
-        const ctx1 = document.getElementById("myChart1").getContext("2d");
         const myChart1 = new Chart(ctx1, {
             type: option_type,
-            data: {labels: {xval}, datasets: [dataset_inside, dataset_outside]},
+            data: {labels: x_values, datasets: [dataset_inside, dataset_outside]},
             options: {
-                animation: true,
+                animation: {
+                    easing: 'easeInOutBack'
+                },
                 interaction: {
-                    mode: 'nearest',
+                    mode: 'index',
                     intersect: false
                 },
                 responsive: true,
@@ -149,29 +186,42 @@
                 plugins: {
                     legend: {
                         position: 'left',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            color: colors.indigo.default,
+                            font: {
+                                size: 12
+                            }
+                        }
                     },
                     title: {
                         display: true,
                         text: 'Temperature',
-                        align: 'end'
+                        align: 'end',
+                        color: colors.indigo.default,
+                        font: {
+                            size: 16
+                        }
                     },
                     decimation: {
                         enabled: true,
                         algorithm: 'min-max'
-                    }
+                    },
                 },
-                scales: option_scales_temp
+                scales: option_scales_temp,
             },
         });
 
-        const ctx2 = document.getElementById("myChart2").getContext("2d");
         const myChart2 = new Chart(ctx2, {
             type: option_type,
-            data: {labels: {xval}, datasets: [dataset_inside_rh, dataset_outside_rh]},
+            data: {labels: x_values, datasets: [dataset_inside_rh, dataset_outside_rh]},
             options: {
-                animation: true,
+                animation: {
+                    easing: 'easeInOutBack'
+                },
                 interaction: {
-                    mode: 'nearest',
+                    mode: 'index',
                     intersect: false
                 },
                 responsive: true,
@@ -185,18 +235,30 @@
                 plugins: {
                     legend: {
                         position: 'left',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            color: colors.indigo.default,
+                            font: {
+                                size: 12
+                            }
+                        },
                     },
                     title: {
                         display: true,
                         text: 'Relative Humidity',
-                        align: 'end'
+                        align: 'end',
+                        color: colors.indigo.default,
+                        font: {
+                            size: 16
+                        }
                     },
                     decimation: {
                         enabled: true,
                         algorithm: 'min-max'
                     }
                 },
-                scales: option_scales_rh
+                scales: option_scales_rh,
             },
         });
 
