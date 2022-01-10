@@ -42,8 +42,10 @@ tree.forEach(function(item, index) {
 });
 
 let temp_list_cpu = [];
-let temp_list_inside = [];
-let temp_list_outside = [];
+let temp_list_inside_lo = [];
+let temp_list_inside_hi = [];
+let temp_list_outside_lo = [];
+let temp_list_outside_hi = [];
 let rh_list_inside = [];
 let rh_list_outside = [];
 let dates = [];
@@ -57,8 +59,10 @@ function clear_globals() {
     n_data_points = 0;
     n_total_points = 0;
     temp_list_cpu = [];
-    temp_list_inside = [];
-    temp_list_outside = [];
+    temp_list_inside_lo = [];
+    temp_list_inside_hi = [];
+    temp_list_outside_lo = [];
+    temp_list_outside_hi = [];
     rh_list_inside = [];
     rh_list_outside = [];
 }
@@ -92,17 +96,23 @@ async function read_file(file, interval_minute) {
         setTimeout(() => reject(new Error('Unable to parse.')), 5000);
 
         /* Setup accumulators. */
-        let cpu_t = 0.0;
-        let inside_t = 0.0;
-        let outside_t = 0.0;
-        let inside_rh = 0.0;
-        let outside_rh = 0.0;
+        let cpu_t_lo = 1000.0;
+        let cpu_t_hi = -1000.0;
+        let inside_t_lo = 1000.0;
+        let inside_t_hi = -1000.0;
+        let outside_t_lo = 1000.0;
+        let outside_t_hi = 0.0;
+        let inside_rh_lo = 100.0;
+        let inside_rh_hi = 0.0;
+        let outside_rh_lo = 100.0;
+        let outside_rh_hi = 0.0;
         n_data_points = 0;
         n_total_points = 0;
 
         /* Iteration memory. */
         let unixTimestamp = 0;
         let unixTs0 = 0;
+        let date0 = 0;
 
         /* Read the file async. */
         fs.createReadStream(file)
@@ -120,25 +130,100 @@ async function read_file(file, interval_minute) {
                 outside_rh = parseFloat(row['outside_rh']);
                 n_total_points++;
 
-                //if ((interval_minute * 60) <= (unixTimestamp - unixTs0)) {
-                    temp_list_cpu.push(cpu_t);
-                    temp_list_inside.push(inside_t);
-                    temp_list_outside.push(outside_t);
-                    rh_list_inside.push(inside_rh);
-                    rh_list_outside.push(outside_rh);
-                    dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
-                    ts.push(unixTimestamp);
+                // Figure out lo/hi points.
+                if (cpu_t < cpu_t_lo)
+                    cpu_t_lo = cpu_t;
+                if (cpu_t_hi < cpu_t)
+                    cpu_t_hi = cpu_t;
+                if (inside_t < inside_t_lo)
+                    inside_t_lo = inside_t;
+                if (inside_t_hi < inside_t)
+                    inside_t_hi = inside_t;
+                if (outside_t < outside_t_lo)
+                    outside_t_lo = outside_t;
+                if (outside_t_hi < outside_t)
+                    outside_t_hi = outside_t;
+                if (inside_rh < inside_rh_lo)
+                    inside_rh_lo = inside_rh;
+                if (inside_rh_hi < inside_rh)
+                    inside_rh_hi = inside_rh;
+                if (outside_rh < outside_rh_lo)
+                    outside_rh_lo = outside_rh;
+                if (outside_rh_hi < outside_rh)
+                    outside_rh_hi = outside_rh;
+
+                let date = moment(unixTimestamp, 'X').utcOffset(tz).format('L');
+                if (0 === date0)
+                {
+                    //console.log('First day:', date);
+                    date0 = date;
+                    unixTs0 = unixTimestamp;
+                }
+                else if (date0 !== date)
+                {
+                    //console.log('Saving lo/hi for previous day...');
+
+                    temp_list_cpu.push(cpu_t_hi);
+                    temp_list_inside_lo.push(inside_t_lo);
+                    temp_list_inside_hi.push(inside_t_hi);
+                    temp_list_outside_lo.push(outside_t_lo);
+                    temp_list_outside_hi.push(outside_t_hi);
+                    rh_list_inside.push(inside_rh_hi);
+                    rh_list_outside.push(outside_rh_hi);
+                    dates.push(date0);
+                    ts.push(unixTs0);
                     n_data_points++;
                     unixTs0 = unixTimestamp;
+
+                    //console.log('New day:', date);
+                    date0 = date;
+
+                    // Reset.
+                    cpu_t_lo = 1000.0;
+                    cpu_t_hi = -1000.0;
+                    inside_t_lo = 1000.0;
+                    inside_t_hi = -1000.0;
+                    outside_t_lo = 1000.0;
+                    outside_t_hi = 0.0;
+                    inside_rh_lo = 100.0;
+                    inside_rh_hi = 0.0;
+                    outside_rh_lo = 100.0;
+                    outside_rh_hi = 0.0;
+                }
+
+                //if ((interval_minute * 60) <= (unixTimestamp - unixTs0)) {
+                //    temp_list_cpu.push(cpu_t);
+                //    temp_list_inside.push(inside_t);
+                //    temp_list_outside.push(outside_t);
+                //    rh_list_inside.push(inside_rh);
+                //    rh_list_outside.push(outside_rh);
+                //    dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
+                //    ts.push(unixTimestamp);
+                //    n_data_points++;
+                //    unixTs0 = unixTimestamp;
                 //}
             })
             .on('end', () => {
                 if (unixTs0 !== unixTimestamp) {
-                    temp_list_cpu.push(cpu_t);
-                    temp_list_inside.push(inside_t);
-                    temp_list_outside.push(outside_t);
-                    rh_list_inside.push(inside_rh);
-                    rh_list_outside.push(outside_rh);
+                    //temp_list_cpu.push(cpu_t);
+                    //temp_list_inside.push(inside_t);
+                    //temp_list_outside.push(outside_t);
+                    //rh_list_inside.push(inside_rh);
+                    //rh_list_outside.push(outside_rh);
+                    //dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
+                    //ts.push(unixTimestamp);
+                    //n_data_points++;
+                    //n_total_points++;
+
+                    //console.log('Saving lo/hi for previous day...');
+
+                    temp_list_cpu.push(cpu_t_hi);
+                    temp_list_inside_lo.push(inside_t_lo);
+                    temp_list_inside_hi.push(inside_t_hi);
+                    temp_list_outside_lo.push(outside_t_lo);
+                    temp_list_outside_hi.push(outside_t_hi);
+                    rh_list_inside.push(inside_rh_hi);
+                    rh_list_outside.push(outside_rh_hi);
                     dates.push(moment(unixTimestamp, 'X').utcOffset(tz).format('L'));
                     ts.push(unixTimestamp);
                     n_data_points++;
@@ -252,7 +337,7 @@ var server = https.createServer(https_options, function (req, res)
         let filename = base_dir + stop_date.replace(/-/gi, '/');
 
         console.log('Loading file: ' + filename + '.csv');
-        let promise = read_file(filename + '.csv', 5);
+        let promise = read_file(filename + '.csv', 60);
 
         promise.then(
             function (result) { /* handle a successful result */
@@ -260,8 +345,10 @@ var server = https.createServer(https_options, function (req, res)
                     res.writeHead(200, {'Content-Type': 'text/html'});
 
                     /* Data sets */
-                    data = data.replace(/{inside_temp}/g, JSON.stringify(temp_list_inside));
-                    data = data.replace(/{outside_temp}/g, JSON.stringify(temp_list_outside));
+                    data = data.replace(/{inside_temp_lo}/g, JSON.stringify(temp_list_inside_lo));
+                    data = data.replace(/{inside_temp_hi}/g, JSON.stringify(temp_list_inside_hi));
+                    data = data.replace(/{outside_temp_lo}/g, JSON.stringify(temp_list_outside_lo));
+                    data = data.replace(/{outside_temp_hi}/g, JSON.stringify(temp_list_outside_hi));
                     data = data.replace(/{inside_rh}/g, JSON.stringify(rh_list_inside));
                     data = data.replace(/{outside_rh}/g, JSON.stringify(rh_list_outside));
 

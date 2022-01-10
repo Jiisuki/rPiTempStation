@@ -42,9 +42,9 @@
 
         let x_values = {xval};
 
-        const dataset_inside = {
-            label: "Inside",
-            data: {inside_temp},
+        const dataset_inside_lo = {
+            label: "Inside Low",
+            data: {inside_temp_lo},
             fill: option_fill,
             borderColor: border_inside,
             backgroundColor: bg_inside,
@@ -53,9 +53,31 @@
             tension: option_tension,
         }
 
-        const dataset_outside = {
-            label: "Outside",
-            data: {outside_temp},
+        const dataset_inside_hi = {
+            label: "Inside High",
+            data: {inside_temp_hi},
+            fill: option_fill,
+            borderColor: border_inside,
+            backgroundColor: bg_inside,
+            pointBorderColor: bg_inside,
+            cubicInterpolationMode: option_interpolation,
+            tension: option_tension,
+        }
+
+        const dataset_outside_lo = {
+            label: "Outside Low",
+            data: {outside_temp_lo},
+            fill: option_fill,
+            borderColor: border_outside,
+            backgroundColor: bg_outside,
+            pointBorderColor: bg_outside,
+            cubicInterpolationMode: option_interpolation,
+            tension: option_tension,
+        }
+
+        const dataset_outside_hi = {
+            label: "Outside High",
+            data: {outside_temp_hi},
             fill: option_fill,
             borderColor: border_outside,
             backgroundColor: bg_outside,
@@ -114,9 +136,9 @@
                     hour: 'D MMM HH:mm',
                     minute: 'HH:mm'
                 },
-                minUnit: 'minute',
+                minUnit: 'day',
                 isoWeekday: true,
-                stepSize: 3
+                //stepSize: 5
             },
             grid: option_grid,
             ticks: option_ticks,
@@ -166,10 +188,10 @@
 
         const myChart1 = new Chart(ctx1, {
             type: option_type,
-            data: {labels: x_values, datasets: [dataset_inside, dataset_outside]},
+            data: {labels: x_values, datasets: [dataset_inside_lo, dataset_inside_hi, dataset_outside_lo, dataset_outside_hi]},
             options: {
                 animation: {
-                    easing: 'easeInOutBack'
+                    easing: 'easeInOutSine'
                 },
                 interaction: {
                     mode: 'index',
@@ -218,7 +240,7 @@
             data: {labels: x_values, datasets: [dataset_inside_rh, dataset_outside_rh]},
             options: {
                 animation: {
-                    easing: 'easeInOutBack'
+                    easing: 'easeInOutSine'
                 },
                 interaction: {
                     mode: 'index',
